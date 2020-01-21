@@ -46,6 +46,7 @@ DEFAULT_CONFIG_VALUES["is_jstestfuzz"] = False
 TEST_SUITE_DIR = DEFAULT_CONFIG_VALUES["test_suites_dir"]
 CONFIG_FILE = generate_resmoke.CONFIG_FILE
 CONFIG_FORMAT_FN = generate_resmoke.CONFIG_FORMAT_FN
+OVERWRITE_CONFIG_VALUES = generate_resmoke.OVERWRITE_CONFIG_VALUES
 REPL_MIXED_VERSION_CONFIGS = ["new-old-new", "new-new-old", "old-new-new"]
 SHARDED_MIXED_VERSION_CONFIGS = ["new-old-old-new"]
 
@@ -317,7 +318,8 @@ def run_generate_tasks(expansion_file, evergreen_config=None):
     prepare_directory_for_suite(CONFIG_DIR)
     evg_config = Configuration()
     config_options = generate_resmoke.ConfigOptions.from_file(
-        expansion_file, REQUIRED_CONFIG_KEYS, DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN)
+        expansion_file, REQUIRED_CONFIG_KEYS, DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN,
+        OVERWRITE_CONFIG_VALUES)
     config_generator = EvergreenConfigGenerator(evg_api, evg_config, config_options)
     config_generator.run()
 

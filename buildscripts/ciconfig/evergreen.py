@@ -387,7 +387,7 @@ class ResmokeArgs(object):
         return ResmokeArgs._get_first_match(resmoke_args, name, "value")
 
     @staticmethod
-    def get_updated_arg(resmoke_args, name, value):
+    def set_updated_arg(resmoke_args, name, value):
         """Add or update the 'resmoke_args' string and set the 'value' from the first --'name'.
 
         Raise an exception in the case there is more than one occurrence of '--name'.

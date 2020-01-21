@@ -1,4 +1,6 @@
 (function() {
+// hi
+// hi
 
 'use strict';
 

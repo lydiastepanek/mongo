@@ -16,6 +16,7 @@ import re
 import sys
 from distutils.util import strtobool  # pylint: disable=no-name-in-module
 from typing import Dict, List, Tuple
+import pdb
 
 import click
 import requests
@@ -67,14 +68,22 @@ REQUIRED_CONFIG_KEYS = {
 DEFAULT_CONFIG_VALUES = {
     "generated_config_dir": "generated_resmoke_config",
     "max_tests_per_suite": 100,
+    # in expansions.yml, this is resmoke_args: --storageEngine=wiredTiger
+    # config shows '--storageEngine=wiredTiger'
     "resmoke_args": "",
     "resmoke_repeat_suites": 1,
     "run_multiple_jobs": "true",
+    # in expansions.yml, this is target_resmoke_time: "10"
+    # config shows 10
     "target_resmoke_time": 60,
     "test_suites_dir": DEFAULT_TEST_SUITE_DIR,
     "use_default_timeouts": False,
+    # in expansions.yml, this is use_large_distro: "true"
+    # config shows 'true'
     "use_large_distro": False,
 }
+
+OVERWRITE_CONFIG_VALUES = {}
 
 CONFIG_FORMAT_FN = {
     "fallback_num_sub_suites": int,
@@ -87,7 +96,7 @@ CONFIG_FORMAT_FN = {
 class ConfigOptions(object):
     """Retrieve configuration from a config file."""
 
-    def __init__(self, config, required_keys=None, defaults=None, formats=None):
+    def __init__(self, config, required_keys=None, defaults=None, formats=None, overwrites={}):
         """
         Create an instance of ConfigOptions.
 
@@ -95,14 +104,15 @@ class ConfigOptions(object):
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         """
-        self.config = config
+        self.config = {**config, **overwrites}
         self.required_keys = required_keys if required_keys else set()
         self.default_values = defaults if defaults else {}
         self.formats = formats if formats else {}
 
     @classmethod
-    def from_file(cls, filepath, required_keys, defaults, formats):
+    def from_file(cls, filepath, required_keys, defaults, formats, overwrites):
         """
         Create an instance of ConfigOptions based on the given config file.
 
@@ -110,9 +120,11 @@ class ConfigOptions(object):
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :return: Instance of ConfigOptions.
         """
-        return cls(read_config.read_config_file(filepath), required_keys, defaults, formats)
+        return cls(
+            read_config.read_config_file(filepath), required_keys, defaults, formats, overwrites)
 
     @property
     def depends_on(self):
@@ -302,6 +314,7 @@ def divide_tests_into_suites(suite_name, tests_runtimes, max_time_seconds, max_s
     :return: List of Suite objects representing grouping of tests.
     """
     suites = []
+    Suite.reset_current_index()
     current_suite = Suite(suite_name)
     last_test_processed = len(tests_runtimes)
     LOGGER.debug("Determines suites for runtime", max_runtime_seconds=max_time_seconds,
@@ -443,12 +456,12 @@ def should_tasks_be_generated(evg_api, task_id):
 class EvergreenConfigGenerator(object):
     """Generate evergreen configurations."""
 
-    def __init__(self, suites, options, evg_api):
+    def __init__(self, shrub_config, suites, options, evg_api):
         """Create new EvergreenConfigGenerator object."""
         self.suites = suites
         self.options = options
         self.evg_api = evg_api
-        self.evg_config = Configuration()
+        self.evg_config = shrub_config
         self.task_specs = []
         self.task_names = []
         self.build_tasks = None
@@ -477,6 +490,8 @@ class EvergreenConfigGenerator(object):
             variables["resmoke_jobs_max"] = self.options.resmoke_jobs_max
 
         if self.options.use_multiversion:
+            # since multiversion tests against multiple versions of mongo,
+            # task_path_suffix is the path to the old version(s) of mongo
             variables["task_path_suffix"] = self.options.use_multiversion
 
         return variables
@@ -560,13 +575,19 @@ class EvergreenConfigGenerator(object):
         use_multiversion = self.options.use_multiversion
         timeout_info = self._get_timeout_command(max_test_runtime, expected_suite_runtime,
                                                  self.options.use_default_timeouts)
+        # run_tests_vars
+        # {'resmoke_args': '--suite=generated_resmoke_config/auth_0.yml --originSuite=auth --storageEngine=wiredTiger --repeatSuites=1 ', 'run_multiple_jobs': 'true', 'task': 'auth'}
+        if self.options.s3_bucket_task_name:
+            run_tests_vars["task"] = self.options.s3_bucket_task_name
         commands = resmoke_commands("run generated tests", run_tests_vars, timeout_info,
                                     use_multiversion)
 
         self._add_dependencies(task).commands(commands)
 
     def _generate_all_tasks(self):
+        print(f"lydia suites are {self.suites}")
         for idx, suite in enumerate(self.suites):
+            print(f"lydia idx, suite are {idx} and {suite.name}")
             sub_task_name = taskname.name_generated_task(self.options.task, idx, len(self.suites),
                                                          self.options.variant)
             max_runtime = None
@@ -591,6 +612,8 @@ class EvergreenConfigGenerator(object):
     def _generate_variant(self):
         self._generate_all_tasks()
 
+        # self.evg_config.to_map()
+        # yes it will just keep adding tasks
         self.evg_config.variant(self.options.variant)\
             .tasks(self.task_specs)\
             .display_task(self._generate_display_task())
@@ -621,6 +644,10 @@ class Suite(object):
 
         self.index = Suite._current_index
         Suite._current_index += 1
+
+    @classmethod
+    def reset_current_index(cls):
+        Suite._current_index = 0
 
     def add_test(self, test_file: str, runtime: float):
         """Add the given test to this suite."""
@@ -749,35 +776,38 @@ class GenerateSubSuites(object):
         """List the test files that are part of the suite being split."""
         return suitesconfig.get_suite(self.config_options.suite).tests
 
-    def render_evergreen_config(self, suites: List[Suite], task: str) -> Tuple[str, str]:
+    def render_evergreen_config(self, config: Configuration,
+                                suites: List[Suite]) -> Tuple[str, str]:
         """Generate the evergreen configuration for the new suite and write it to disk."""
-        evg_config_gen = EvergreenConfigGenerator(suites, self.config_options, self.evergreen_api)
+        evg_config_gen = EvergreenConfigGenerator(config, suites, self.config_options,
+                                                  self.evergreen_api)
         evg_config = evg_config_gen.generate_config()
-        return task + ".json", evg_config.to_json()
+        return evg_config.to_json()
 
-    def run(self):
-        """Generate resmoke suites that run within a specified target execution time."""
-        LOGGER.debug("config options", config_options=self.config_options)
-
+    def generate_config_dict(self, shrub_config):
         if not should_tasks_be_generated(self.evergreen_api, self.config_options.task_id):
             LOGGER.info("Not generating configuration due to previous successful generation.")
             return
 
         end_date = datetime.datetime.utcnow().replace(microsecond=0)
         start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
-        target_dir = self.config_options.generated_config_dir
-
         suites = self.calculate_suites(start_date, end_date)
 
         LOGGER.debug("Creating suites", num_suites=len(suites), task=self.config_options.task,
-                     dir=target_dir)
+                     dir=self.config_options.generated_config_dir)
         config_file_dict = render_suite_files(suites, self.config_options.suite, self.test_list,
                                               self.config_options.test_suites_dir)
+        shrub_config_json = self.render_evergreen_config(shrub_config, suites)
+        return config_file_dict, shrub_config_json
 
-        shrub_config = self.render_evergreen_config(suites, self.config_options.task)
-        config_file_dict[shrub_config[0]] = shrub_config[1]
+    def run(self):
+        """Generate resmoke suites that run within a specified target execution time."""
+        LOGGER.debug("config options", config_options=self.config_options)
+        shrub_config = Configuration()
+        config_file_dict, shrub_config_json = self.generate_config_dict(shrub_config)
 
-        write_file_dict(target_dir, config_file_dict)
+        config_file_dict[self.config_options.task + ".json"] = shrub_config_json
+        write_file_dict(self.config_options.generated_config_dir, config_file_dict)
 
 
 @click.command()
@@ -799,7 +829,8 @@ def main(expansion_file, evergreen_config, verbose):
     enable_logging(verbose)
     evg_api = RetryingEvergreenApi.get_api(config_file=evergreen_config)
     config_options = ConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
-                                             DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN)
+                                             DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN,
+                                             OVERWRITE_CONFIG_VALUES)
 
     GenerateSubSuites(evg_api, config_options).run()
 

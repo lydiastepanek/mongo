@@ -1506,6 +1506,45 @@ functions:
         cd $target_dir
         tar xzf generate_tasks_config.tgz
 
+  "generate selected tests":
+    - command: expansions.write
+      params:
+        file: src/expansions.yml
+    - *configure_evergreen_api_credentials
+    - command: shell.exec
+      type: test
+      params:
+        working_dir: src
+        shell: bash
+        script: |
+          set -o errexit
+
+          ${activate_virtualenv}
+          selected_tests_auth_args="--selected-tests-auth-user=${selected_tests_auth_user} --selected-tests-auth-token=${selected_tests_auth_token}"
+          PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant=${build_variant} $selected_tests_auth_args
+    - command: archive.targz_pack
+      params:
+        target: generate_tasks_config.tgz
+        source_dir: src/generated_resmoke_config
+        include:
+          - "*"
+    - command: s3.put
+      params:
+        aws_key: ${aws_key}
+        aws_secret: ${aws_secret}
+        local_file: generate_tasks_config.tgz
+        remote_file: ${project}/${build_variant}/${revision}/generate_tasks/${task_name}-${build_id}.tgz
+        bucket: mciuploads
+        permissions: public-read
+        content_type: ${content_type|application/gzip}
+        display_name: Generated Task Config - Execution ${execution}
+        optional: true
+    - command: generate.tasks
+      params:
+        optional: true
+        files:
+          - src/generated_resmoke_config/*.json
+
   "generate burn in tags":
     - command: expansions.write
       params:
@@ -5441,6 +5480,19 @@ tasks:
       repeat_tests_secs: 600
       repeat_tests_min: 2
       repeat_tests_max: 1000
+
+- name: selected_tests_gen
+  depends_on:
+    - name: compile
+  commands:
+  - command: manifest.load
+  - func: "git get project"
+  - func: "set task expansion macros"
+  - func: "set up virtualenv"
+    vars:
+      pip_dir: ${workdir}/src/etc/pip
+  - func: "upload pip requirements"
+  - func: "generate selected tests"
 
 - name: auth_audit_gen
   tags: ["auth", "audit"]
@@ -9731,6 +9783,7 @@ buildvariants:
   - name: audit
   - name: .auth
   - name: burn_in_tags_gen
+  - name: selected_tests_gen
   - name: buildscripts_test
   - name: unittest_shell_hang_analyzer_gen
   - name: .causally_consistent !.sharding

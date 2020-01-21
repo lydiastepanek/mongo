@@ -9,6 +9,7 @@ import os.path
 import shlex
 import subprocess
 import sys
+import pdb
 
 from math import ceil
 from collections import defaultdict
@@ -333,7 +334,7 @@ def _set_resmoke_args(task):
     if task.is_generate_resmoke_task:
         suite_name = task.get_vars_suite_name(task.generate_resmoke_tasks_command["vars"])
 
-    return ResmokeArgs.get_updated_arg(resmoke_args, "suites", suite_name)
+    return ResmokeArgs.set_updated_arg(resmoke_args, "suites", suite_name)
 
 
 def _distro_to_run_task_on(task: VariantTask, evg_proj_config: EvergreenProjectConfig,
@@ -376,6 +377,7 @@ def _gather_task_info(task: VariantTask, tests_by_suite: Dict,
     :return: Dictionary of information needed to run task.
     """
     return {
+        "display_task_name": _get_task_name(task),
         "resmoke_args": _set_resmoke_args(task),
         "tests": tests_by_suite[task.resmoke_suite],
         "use_multiversion": task.multiversion_path,
@@ -412,12 +414,20 @@ def create_task_list(evergreen_conf: EvergreenProjectConfig, build_variant: str,
     # Find all the build variant tasks.
     exclude_tasks_set = set(exclude_tasks)
     all_variant_tasks = {
-        _get_task_name(task): task
+        task.name: task
         for task in evg_build_variant.tasks
         if task.name not in exclude_tasks_set and task.combined_resmoke_args
     }
 
     # Return the list of tasks to run for the specified suite.
+    #  [task.resmoke_suite for task_name, task in all_variant_tasks.items() if task_name == "auth_audit"]
+    #  ['auth_audit']
+    #  [task.resmoke_suite for task in evg_build_variant.tasks if task.name == "auth_audit_gen"]
+    #  ['auth_audit']
+    #  (Pdb) [task.resmoke_suite for task in evg_build_variant.tasks if task.name == "sharding_jscore_passthrough_wire_ops_gen"]
+    #  ['sharding_jscore_passthrough']
+    #  (Pdb) [task.resmoke_suite for task_name, task in all_variant_tasks.items() if task_name == "sharding_jscore_passthrough_wire_ops"]
+    #  ['sharding_jscore_passthrough']
     task_list = {
         task_name: _gather_task_info(task, tests_by_suite, evergreen_conf, build_variant)
         for task_name, task in all_variant_tasks.items() if task.resmoke_suite in tests_by_suite
@@ -572,17 +582,20 @@ def create_generate_tasks_config(evg_config: Configuration, tests_by_task: Dict,
     resmoke_options = repeat_config.generate_resmoke_options()
     for task in sorted(tests_by_task):
         multiversion_path = tests_by_task[task].get("use_multiversion")
-        task_runtime_stats = _get_task_runtime_history(evg_api, generate_config.project, task,
-                                                       generate_config.build_variant)
+        display_task_name = tests_by_task[task]["display_task_name"]
+        task_runtime_stats = _get_task_runtime_history(
+            evg_api, generate_config.project, display_task_name, generate_config.build_variant)
         resmoke_args = tests_by_task[task]["resmoke_args"]
         test_list = tests_by_task[task]["tests"]
         distro = tests_by_task[task].get("distro", generate_config.distro)
+        print(f"lydia test_list is {test_list}")
         for index, test in enumerate(test_list):
+            print(f"lydia index, test are {index} and {test}")
             # Evergreen always uses a unix shell, even on Windows, so instead of using os.path.join
             # here, just use the forward slash; otherwise the path separator will be treated as
             # the escape character on Windows.
-            sub_task_name = name_generated_task(f"{task_prefix}:{task}", index, len(test_list),
-                                                generate_config.run_build_variant)
+            sub_task_name = name_generated_task(f"{task_prefix}:{display_task_name}", index,
+                                                len(test_list), generate_config.run_build_variant)
             LOGGER.debug("Generating sub-task", sub_task=sub_task_name)
 
             test_unix_style = test.replace('\\', '/')
@@ -712,7 +725,7 @@ def create_generate_tasks_file(tests_by_task: Dict, generate_config: GenerateCon
     Create an Evergreen generate.tasks file to run the given tasks and tests.
 
     :param tests_by_task: Dictionary of tests and tasks to run.
-    :param generate_config: Information about how burn_in should generate tasks.
+    :param generate_config: Information about how should generate tasks.
     :param repeat_config: Information about how burn_in should repeat tests.
     :param evg_api: Evergreen api.
     :param task_prefix: Prefix to start generated task's name with.
@@ -721,6 +734,7 @@ def create_generate_tasks_file(tests_by_task: Dict, generate_config: GenerateCon
     """
     evg_config = Configuration()
     if generate_config.use_multiversion:
+        # this will break
         evg_config = create_multiversion_generate_tasks_config(evg_config, tests_by_task, evg_api,
                                                                generate_config)
     else:
@@ -785,7 +799,7 @@ def _get_evg_api(evg_api_config: str, local_mode: bool) -> Optional[EvergreenApi
     """
     if not local_mode:
         return RetryingEvergreenApi.get_api(config_file=evg_api_config)
-    return None
+    return RetryingEvergreenApi.get_api(use_config_file=True)
 
 
 def burn_in(repeat_config: RepeatConfig, generate_config: GenerateConfig, resmoke_args: str,
