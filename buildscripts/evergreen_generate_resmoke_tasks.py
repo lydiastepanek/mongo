@@ -604,9 +604,13 @@ class EvergreenConfigGenerator(object):
         self._generate_task(misc_suite_name, misc_task_name, self.options.generated_config_dir)
 
     def _generate_display_task(self):
-        dt = DisplayTaskDefinition(self.options.task)\
-            .execution_tasks(self.task_names) \
-            .execution_task("{0}_gen".format(self.options.task))
+        if self.options.s3_bucket_task_name == "selected_tests":
+            dt = DisplayTaskDefinition(f"{self.options.task}_{self.options.variant}")\
+                .execution_tasks(self.task_names)
+        else:
+            dt = DisplayTaskDefinition(self.options.task)\
+                .execution_tasks(self.task_names) \
+                .execution_task("{0}_gen".format(self.options.task))
         return dt
 
     def _generate_variant(self):

@@ -112,10 +112,10 @@ def find_test_files_related_to_changed_files(selected_tests_auth_user: str,
         'https://selected-tests.server-tig.prod.corp.mongodb.com/projects/mongodb-mongo-master/test-mappings',
         params=payload, headers=headers, cookies=cookies).json()
     related_test_files = {
-        'jstests/auth/auth3.js'
+        #  'jstests/auth/auth3.js'
         #  'jstests/core/currentop_waiting_for_latch.js'
-        #  test_file['name']
-        #  for test_mapping in response['test_mappings'] for test_file in test_mapping['test_files']
+        test_file['name']
+        for test_mapping in response['test_mappings'] for test_file in test_mapping['test_files']
     }
     return filter_related_test_files(repo, related_test_files)
 
@@ -128,7 +128,8 @@ def get_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, t
         task_vars = task.generate_resmoke_tasks_command["vars"]
     else:
         task_vars = task.run_tests_command["vars"]
-        task_vars.update({'fallback_num_sub_suites': '1'})
+        task_vars.update(
+            {'fallback_num_sub_suites': '1', 'display_task_suffix': f"_{build_variant}"})
     tests_to_run = " ".join(burn_in_task_config['tests'])
     task_vars['resmoke_args'] = "{} {}".format(task_vars['resmoke_args'], tests_to_run)
     overwrite_values = {
@@ -149,7 +150,6 @@ def generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, buil
         config_options = ConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
                                                  DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN,
                                                  overwrite_values)
-        pdb.set_trace()
         suite_file_dict, shrub_config_json = GenerateSubSuites(
             evg_api, config_options).generate_config_dict(shrub_config)
         # suite_file_dict

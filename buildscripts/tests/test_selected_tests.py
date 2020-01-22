@@ -149,6 +149,7 @@ class TestGetOverwriteValues(unittest.TestCase):
         self.assertEqual(overwrite_values["resmoke_args"],
                          '--storageEngine=wiredTiger jstests/auth/auth3.js')
         self.assertEqual(overwrite_values["fallback_num_sub_suites"], "4")
+        self.assertIsNone(overwrite_values.get("display_task_suffix"))
 
     def test_task_is_not_a_generate_resmoke_task(self):
         task_name = "jsCore_auth"
@@ -167,6 +168,7 @@ class TestGetOverwriteValues(unittest.TestCase):
             '--suites=core_auth jstests/core/currentop_waiting_for_latch.js jstests/core/latch_analyzer.js'
         )
         self.assertEqual(overwrite_values["fallback_num_sub_suites"], "1")
+        self.assertEqual(overwrite_values["display_task_suffix"], "_variant")
 
 
 class TestGenerateShrubConfig(unittest.TestCase):
@@ -179,5 +181,15 @@ class TestGenerateShrubConfig(unittest.TestCase):
         evg_conf = MagicMock()
         expansion_file = MagicMock()
         tests_by_task = tests_by_task_stub()
-        #  config_file_dict = under_test.generate_shrub_config(evg_api, evg_conf, expansion_file,
-        #  tests_by_task, "variant")
+        yml_suite_file_contents = MagicMock()
+        shrub_json_file_contents = MagicMock()
+        suite_file_dict_mock = {'auth_0.yml': yml_suite_file_contents}
+        generate_subsuites_mock.return_value.generate_config_dict.return_value = (
+            suite_file_dict_mock, shrub_json_file_contents)
+        config_file_dict = under_test.generate_shrub_config(evg_api, evg_conf, expansion_file,
+                                                            tests_by_task, "variant")
+        self.assertEqual(
+            config_file_dict, {
+                'auth_0.yml': yml_suite_file_contents,
+                'selected_tests_config.json': shrub_json_file_contents
+            })
