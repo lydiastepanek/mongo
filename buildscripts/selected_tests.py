@@ -71,7 +71,7 @@ def _get_evg_api(evg_api_config: str, local_mode: bool) -> Optional[EvergreenApi
     return RetryingEvergreenApi.get_api(use_config_file=True)
 
 
-def check_file_exists_in_repo(repo, file_path: str) -> bool:
+def _check_file_exists_in_repo(repo, file_path: str) -> bool:
     '''
     :param repo: The git python repo object
     :param file_path: The full path to the file from the repository root
@@ -91,16 +91,15 @@ def check_file_exists_in_repo(repo, file_path: str) -> bool:
     return (file_path in rsub)
 
 
-def filter_related_test_files(repo: Repo, related_test_files: Set[str]) -> Set[str]:
+def _filter_deleted_files(repo: Repo, related_test_files: Set[str]) -> Set[str]:
     return {
         filepath
-        for filepath in related_test_files if check_file_exists_in_repo(repo, filepath)
+        for filepath in related_test_files if _check_file_exists_in_repo(repo, filepath)
     }
 
 
-def find_test_files_related_to_changed_files(selected_tests_auth_user: str,
-                                             selected_tests_auth_token: str,
-                                             changed_files: Set[str], repo: Repo) -> Set[str]:
+def _find_related_test_files(selected_tests_auth_user: str, selected_tests_auth_token: str,
+                             changed_files: Set[str], repo: Repo) -> Set[str]:
     LOGGER.debug("Found changed files", files=changed_files)
     #  payload = {'changed_files': ",".join(changed_files)}
     #  payload = {'changed_files': "src/mongo/db/storage/kv/kv_drop_pending_ident_reaper.cpp"}
@@ -120,11 +119,11 @@ def find_test_files_related_to_changed_files(selected_tests_auth_user: str,
         test_file['name']
         for test_mapping in response['test_mappings'] for test_file in test_mapping['test_files']
     }
-    return filter_related_test_files(repo, related_test_files)
+    return _filter_deleted_files(repo, related_test_files)
 
 
-def get_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, task_name: str,
-                         burn_in_task_config: dict):
+def _get_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, task_name: str,
+                          burn_in_task_config: dict):
     evg_build_variant = evg_conf.get_variant(build_variant)
     task = evg_build_variant.get_task(task_name)
     if task.is_generate_resmoke_task:
@@ -144,12 +143,12 @@ def get_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, t
     return overwrite_values
 
 
-def generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, build_variant):
+def _generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, build_variant):
     shrub_config = Configuration()
     config_file_dict = {}
     for task_name, burn_in_task_config in tests_by_task.items():
-        overwrite_values = get_overwrite_values(evg_conf, build_variant, task_name,
-                                                burn_in_task_config)
+        overwrite_values = _get_overwrite_values(evg_conf, build_variant, task_name,
+                                                 burn_in_task_config)
         config_options = SelectedTestsConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
                                                               DEFAULT_CONFIG_VALUES,
                                                               CONFIG_FORMAT_FN, overwrite_values)
@@ -203,14 +202,14 @@ def main(verbose, expansion_file, evg_api_config, local_mode, build_variant, gen
     repo = Repo(".")
     changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
-    related_test_files = find_test_files_related_to_changed_files(
-        selected_tests_auth_user, selected_tests_auth_token, changed_files, repo)
+    related_test_files = _find_related_test_files(selected_tests_auth_user,
+                                                  selected_tests_auth_token, changed_files, repo)
     LOGGER.debug("related test files found", related_test_files=related_test_files)
     if related_test_files:
         tests_by_task = create_task_list_for_tests(related_test_files, build_variant, evg_conf)
         LOGGER.debug("tests and tasks found", tests_by_task=tests_by_task)
-        config_file_dict = generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task,
-                                                 build_variant)
+        config_file_dict = _generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task,
+                                                  build_variant)
 
         write_file_dict(SELECTED_TESTS_CONFIG_DIR, config_file_dict)
     else:
