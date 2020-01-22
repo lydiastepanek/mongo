@@ -9,7 +9,6 @@ import os.path
 import shlex
 import subprocess
 import sys
-import pdb
 
 from math import ceil
 from collections import defaultdict

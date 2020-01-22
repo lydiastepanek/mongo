@@ -21,11 +21,12 @@ if __name__ == "__main__" and __package__ is None:
 
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
-from buildscripts.burn_in_tests import (SELECTOR_FILE, create_task_list_for_tests)
-from buildscripts.ciconfig.evergreen import ResmokeArgs, parse_evergreen_file, EvergreenProjectConfig
+from buildscripts.burn_in_tests import create_task_list_for_tests
+from buildscripts.ciconfig.evergreen import (EvergreenProjectConfig, ResmokeArgs,
+                                             parse_evergreen_file)
 from buildscripts.evergreen_generate_resmoke_tasks import (
     CONFIG_FORMAT_FN, DEFAULT_CONFIG_VALUES, REQUIRED_CONFIG_KEYS, GenerateSubSuites,
-    write_file_dict, SelectedTestsConfigOptions)
+    SelectedTestsConfigOptions, write_file_dict)
 from buildscripts.patch_builds.change_data import find_changed_files
 
 structlog.configure(logger_factory=LoggerFactory())
@@ -123,10 +124,8 @@ def _find_related_test_files(selected_tests_auth_user: str, selected_tests_auth_
     headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
     cookies = dict(auth_user=selected_tests_auth_user, auth_token=selected_tests_auth_token)
     response = requests.get(
-        """
-        https://selected-tests.server-tig.prod.corp.mongodb.com
-        /projects/mongodb-mongo-master/test-mappings
-        """, params=payload, headers=headers, cookies=cookies).json()
+        "https://selected-tests.server-tig.prod.corp.mongodb.com/projects/mongodb-mongo-master/test-mappings",
+        params=payload, headers=headers, cookies=cookies).json()
     related_test_files = {
         test_file['name']
         for test_mapping in response['test_mappings'] for test_file in test_mapping['test_files']

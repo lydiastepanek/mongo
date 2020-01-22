@@ -16,7 +16,6 @@ import re
 import sys
 from distutils.util import strtobool  # pylint: disable=no-name-in-module
 from typing import Dict, List, Tuple
-import pdb
 
 import click
 import requests
