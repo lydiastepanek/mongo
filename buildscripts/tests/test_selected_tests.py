@@ -20,10 +20,10 @@ def ns(relative_name):  # pylint: disable=invalid-name
 
 def repo_with_one_files_1_and_2(temp_directory):
     repo = git.Repo.init(temp_directory)
-    myTemp = os.path.join(temp_directory, 'jstests')
-    os.makedirs(myTemp)
-    file_1 = os.path.join(myTemp, "file-1.js")
-    file_2 = os.path.join(myTemp, "file-2.js")
+    subdir = os.path.join(temp_directory, 'jstests')
+    os.makedirs(subdir)
+    file_1 = os.path.join(subdir, "file-1.js")
+    file_2 = os.path.join(subdir, "file-2.js")
     open(file_1, "wb").close()
     open(file_2, "wb").close()
     repo.index.add([file_1, file_2])
@@ -87,6 +87,7 @@ class TestFilterDeletedTestFiles(unittest.TestCase):
         with TemporaryDirectory() as tmpdir:
             repo = repo_with_one_files_1_and_2(tmpdir)
             related_test_files = {"jstests/file-1.js", "jstests/file-3.js"}
+
             filtered_test_files = under_test._filter_deleted_files(repo, related_test_files)
 
             self.assertEqual(filtered_test_files, {"jstests/file-1.js"})
@@ -103,9 +104,9 @@ class TestFindRelatedTestFiles(unittest.TestCase):
             ]
         }
         requests_mock.get.return_value.json.return_value = response_object
-
         with TemporaryDirectory() as tmpdir:
             repo = repo_with_one_files_1_and_2(tmpdir)
+
             related_test_files = under_test._find_related_test_files("auth_user", "auth_token",
                                                                      changed_files, repo)
 
@@ -121,9 +122,9 @@ class TestFindRelatedTestFiles(unittest.TestCase):
         changed_files = {"src/file1.cpp", "src/file2.js"}
         response_object = {"test_mappings": []}
         requests_mock.get.return_value.json.return_value = response_object
-
         with TemporaryDirectory() as tmpdir:
             repo = repo_with_one_files_1_and_2(tmpdir)
+
             related_test_files = under_test._find_related_test_files("auth_user", "auth_token",
                                                                      changed_files, repo)
 
@@ -137,13 +138,11 @@ class TestGetOverwriteValues(unittest.TestCase):
         burn_in_task_config = tests_by_task_stub()[task_name]
         evg_conf_mock = MagicMock()
         evg_conf_mock.get_variant.return_value.get_task.return_value = task
+
         overwrite_values = under_test._create_overwrite_values(evg_conf_mock, "variant", task_name,
                                                                burn_in_task_config)
-        # {'task_name': 'auth_gen', 's3_bucket_task_name': 'selected_tests',
-        # 'fallback_num_sub_suites': '4', 'resmoke_args':
-        # '--storageEngine=wiredTiger jstests/auth/auth3.js'}
+
         self.assertEqual(overwrite_values["task_name"], task_name)
-        # suite should be empty
         self.assertIsNone(overwrite_values.get("suite"))
         self.assertEqual(overwrite_values["resmoke_args"],
                          '--storageEngine=wiredTiger jstests/auth/auth3.js')
@@ -155,9 +154,10 @@ class TestGetOverwriteValues(unittest.TestCase):
         burn_in_task_config = tests_by_task_stub()[task_name]
         evg_conf_mock = MagicMock()
         evg_conf_mock.get_variant.return_value.get_task.return_value = task
+
         overwrite_values = under_test._create_overwrite_values(evg_conf_mock, "variant", task_name,
                                                                burn_in_task_config)
-        #  {'task_name': 'jsCore_auth', 's3_bucket_task_name': 'selected_tests', 'resmoke_args': '--suites=core_auth jstests/core/currentop_waiting_for_latch.js jstests/core/latch_analyzer.js', 'fallback_num_sub_suites': '1'}
+
         self.assertEqual(overwrite_values["task_name"], task_name)
         self.assertEqual(overwrite_values["suite"], "core_auth")
         self.assertEqual(
@@ -183,6 +183,7 @@ class TestGenerateShrubConfig(unittest.TestCase):
         suite_file_dict_mock = {'auth_0.yml': yml_suite_file_contents}
         generate_subsuites_mock.return_value.generate_config_dict.return_value = (
             suite_file_dict_mock, shrub_json_file_contents)
+
         config_file_dict = under_test._generate_shrub_config(evg_api, evg_conf, expansion_file,
                                                              tests_by_task, "variant")
         self.assertEqual(
@@ -206,6 +207,7 @@ class TestGenerateShrubConfig(unittest.TestCase):
         suite_file_dict_mock = {'auth_0.yml': yml_suite_file_contents}
         generate_subsuites_mock.return_value.generate_config_dict.return_value = (
             suite_file_dict_mock, shrub_json_file_contents)
+
         config_file_dict = under_test._generate_shrub_config(evg_api, evg_conf, expansion_file,
                                                              tests_by_task, "variant")
         self.assertEqual(config_file_dict, {'selected_tests_config.json': {}})
