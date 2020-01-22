@@ -1,11 +1,10 @@
 """Unit tests for the selected_tests script."""
 import os
-
 import unittest
-import git
 from tempfile import TemporaryDirectory
-import pdb
-from mock import Mock, patch, MagicMock
+
+import git
+from mock import MagicMock, Mock, patch
 
 import buildscripts.ciconfig.evergreen as _evergreen
 from buildscripts import selected_tests as under_test

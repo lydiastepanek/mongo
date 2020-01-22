@@ -328,8 +328,8 @@ class TestSelectedTestsConfigOptions(unittest.TestCase):
         defaults = {"key1": "value2"}
         overwrites = {"key1": "value3"}
 
-        config_options = under_test.SelectedTestsConfigOptions(config, defaults=defaults,
-                                                               overwrites=overwrites)
+        config_options = under_test.SelectedTestsConfigOptions(config, overwrites,
+                                                               defaults=defaults)
 
         self.assertEqual(overwrites["key1"], config_options.key1)
 
@@ -338,8 +338,8 @@ class TestSelectedTestsConfigOptions(unittest.TestCase):
         defaults = {"key1": "value2"}
         overwrites = {"key1": "value3"}
 
-        config_options = under_test.SelectedTestsConfigOptions(config, defaults=defaults,
-                                                               overwrites=overwrites)
+        config_options = under_test.SelectedTestsConfigOptions(config, overwrites,
+                                                               defaults=defaults)
 
         self.assertEqual(overwrites["key1"], config_options.key1)
 

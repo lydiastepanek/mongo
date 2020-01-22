@@ -10,24 +10,24 @@ from typing import Dict, List, Optional, Set, Tuple
 import click
 import requests
 import structlog
+from structlog.stdlib import LoggerFactory
 from evergreen.api import EvergreenApi, RetryingEvergreenApi
 from git import Repo
 from shrub.config import Configuration
-from structlog.stdlib import LoggerFactory
 
 # Get relative imports to work when the package is not installed on the PYTHONPATH.
 if __name__ == "__main__" and __package__ is None:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import buildscripts.resmokelib.parser
-import buildscripts.util.read_config as read_config
-from buildscripts.burn_in_tests import create_task_list_for_tests
-from buildscripts.ciconfig.evergreen import (EvergreenProjectConfig, ResmokeArgs,
-                                             parse_evergreen_file)
-from buildscripts.evergreen_generate_resmoke_tasks import (
-    CONFIG_FORMAT_FN, DEFAULT_CONFIG_VALUES, REQUIRED_CONFIG_KEYS, GenerateSubSuites,
-    SelectedTestsConfigOptions, write_file_dict)
-from buildscripts.patch_builds.change_data import find_changed_files
+import buildscripts.resmokelib.parser  # pylint: disable=wrong-import-position
+import buildscripts.util.read_config as read_config  # pylint: disable=wrong-import-position
+from buildscripts.burn_in_tests import create_task_list_for_tests  # pylint: disable=wrong-import-position
+from buildscripts.ciconfig.evergreen import EvergreenProjectConfig, ResmokeArgs, \
+        parse_evergreen_file  # pylint: disable=wrong-import-position
+from buildscripts.evergreen_generate_resmoke_tasks import CONFIG_FORMAT_FN, \
+        DEFAULT_CONFIG_VALUES, REQUIRED_CONFIG_KEYS, GenerateSubSuites, \
+        SelectedTestsConfigOptions, write_file_dict  # pylint: disable=wrong-import-position
+from buildscripts.patch_builds.change_data import find_changed_files  # pylint: disable=wrong-import-position
 
 structlog.configure(logger_factory=LoggerFactory())
 LOGGER = structlog.getLogger(__name__)
@@ -91,7 +91,7 @@ def _check_file_exists_in_repo(repo, file_path: str) -> bool:
         except KeyError:
             return False
 
-    return (file_path in rsub)
+    return file_path in rsub
 
 
 def _filter_deleted_files(repo: Repo, related_test_files: Set[str]) -> Set[str]:
@@ -164,7 +164,7 @@ def _create_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: st
 
 def _generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, build_variant):
     '''
-    Generate a dict containing file names and contents for the json file containing generated 
+    Generate a dict containing file names and contents for the json file containing generated
     tasks config and the yml files containing suite configs.
 
     :param evg_api: Evergreen API object.
@@ -180,9 +180,9 @@ def _generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, bui
     for task_name, burn_in_task_config in tests_by_task.items():
         overwrite_values = _create_overwrite_values(evg_conf, build_variant, task_name,
                                                     burn_in_task_config)
-        config_options = SelectedTestsConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
-                                                              DEFAULT_CONFIG_VALUES,
-                                                              CONFIG_FORMAT_FN, overwrite_values)
+        config_options = SelectedTestsConfigOptions.from_file(
+            expansion_file, overwrite_values, REQUIRED_CONFIG_KEYS, DEFAULT_CONFIG_VALUES,
+            CONFIG_FORMAT_FN)
         suite_file_dict, shrub_config_json = GenerateSubSuites(
             evg_api, config_options).generate_config_dict(shrub_config)
         config_file_dict.update(suite_file_dict)
@@ -200,13 +200,12 @@ def _generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, bui
               help="Local mode. Do not call out to evergreen api.")
 @click.option("--build-variant", "build_variant", default=None, metavar='BUILD_VARIANT',
               help="Tasks to run will be selected from this build variant.")
-@click.option("--generate-tasks-file", "generate_tasks_file", default=None, metavar='FILE',
-              help="Run in 'generate.tasks' mode. Store task config to given file.")
 @click.option("--selected-tests-auth-user", "selected_tests_auth_user", required=True,
               help="Auth user for selected-tests service.")
 @click.option("--selected-tests-auth-token", "selected_tests_auth_token", required=True,
               help="Auth token for selected-tests service.")
-def main(verbose, expansion_file, evg_api_config, local_mode, build_variant, generate_tasks_file,
+# pylint: disable=too-many-arguments
+def main(verbose, expansion_file, evg_api_config, local_mode, build_variant,
          selected_tests_auth_user, selected_tests_auth_token):
     """Execute Main program."""
     _configure_logging(verbose)

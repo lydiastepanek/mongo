@@ -171,35 +171,35 @@ class ConfigOptions(object):
 class SelectedTestsConfigOptions(ConfigOptions):
     """Retrieve configuration from a config file."""
 
-    def __init__(self, config, required_keys=None, defaults=None, formats=None, overwrites={}):
+    # pylint: disable=too-many-arguments
+    def __init__(self, config, overwrites, required_keys=None, defaults=None, formats=None):
         """
         Create an instance of SelectedTestsConfigOptions.
 
         :param config: Dictionary of configuration to use.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
-        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         """
-        self.config = {**config, **overwrites}
-        self.required_keys = required_keys if required_keys else set()
-        self.default_values = defaults if defaults else {}
-        self.formats = formats if formats else {}
+        super(SelectedTestsConfigOptions, self).__init__({**config, **overwrites}, required_keys,
+                                                         defaults, formats)
 
     @classmethod
-    def from_file(cls, filepath, required_keys, defaults, formats, overwrites):
+    # pylint: disable=too-many-arguments,W0221
+    def from_file(cls, filepath, overwrites, required_keys, defaults, formats):
         """
         Create an instance of SelectedTestsConfigOptions based on the given config file.
 
         :param filepath: Path to file containing configuration.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
-        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :return: Instance of ConfigOptions.
         """
         return cls(
-            read_config.read_config_file(filepath), required_keys, defaults, formats, overwrites)
+            read_config.read_config_file(filepath), overwrites, required_keys, defaults, formats)
 
 
 def enable_logging(verbose):
@@ -667,6 +667,7 @@ class Suite(object):
 
     @classmethod
     def reset_current_index(cls):
+        """Reset the current index."""
         Suite._current_index = 0
 
     def add_test(self, test_file: str, runtime: float):
@@ -798,13 +799,14 @@ class GenerateSubSuites(object):
 
     def render_evergreen_config(self, config: Configuration,
                                 suites: List[Suite]) -> Tuple[str, str]:
-        """Generate the evergreen configuration for the new suite and write it to disk."""
+        """Generate the evergreen configuration for the new suite."""
         evg_config_gen = EvergreenConfigGenerator(config, suites, self.config_options,
                                                   self.evergreen_api)
         evg_config = evg_config_gen.generate_config()
         return evg_config.to_json()
 
     def generate_config_dict(self, shrub_config):
+        """Generate the evergreen configuration for the new suite and the generated task."""
         end_date = datetime.datetime.utcnow().replace(microsecond=0)
         start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
         suites = self.calculate_suites(start_date, end_date)
@@ -817,7 +819,10 @@ class GenerateSubSuites(object):
         return config_file_dict, shrub_config_json
 
     def run(self):
-        """Generate resmoke suites that run within a specified target execution time."""
+        """
+        Generate resmoke suites that run within a specified target execution time and write them
+        to disk.
+        """
         LOGGER.debug("config options", config_options=self.config_options)
         if not should_tasks_be_generated(self.evergreen_api, self.config_options.task_id):
             LOGGER.info("Not generating configuration due to previous successful generation.")
