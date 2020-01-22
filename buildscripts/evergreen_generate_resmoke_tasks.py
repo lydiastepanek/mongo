@@ -820,10 +820,6 @@ class GenerateSubSuites(object):
         return evg_config.to_json()
 
     def generate_config_dict(self, shrub_config):
-        if not should_tasks_be_generated(self.evergreen_api, self.config_options.task_id):
-            LOGGER.info("Not generating configuration due to previous successful generation.")
-            return
-
         end_date = datetime.datetime.utcnow().replace(microsecond=0)
         start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
         suites = self.calculate_suites(start_date, end_date)
@@ -838,6 +834,10 @@ class GenerateSubSuites(object):
     def run(self):
         """Generate resmoke suites that run within a specified target execution time."""
         LOGGER.debug("config options", config_options=self.config_options)
+        if not should_tasks_be_generated(self.evergreen_api, self.config_options.task_id):
+            LOGGER.info("Not generating configuration due to previous successful generation.")
+            return
+
         shrub_config = Configuration()
         config_file_dict, shrub_config_json = self.generate_config_dict(shrub_config)
 
