@@ -322,6 +322,28 @@ class TestConfigOptions(unittest.TestCase):
         self.assertIsInstance(config_options.number, int)
 
 
+class TestSelectedTestsConfigOptions(unittest.TestCase):
+    def test_overwrite_values_overwrite_config(self):
+        config = {"key1": "value1"}
+        defaults = {"key1": "value2"}
+        overwrites = {"key1": "value3"}
+
+        config_options = under_test.SelectedTestsConfigOptions(config, defaults=defaults,
+                                                               overwrites=overwrites)
+
+        self.assertEqual(overwrites["key1"], config_options.key1)
+
+    def test_overwrite_values_overwrite_defaults(self):
+        config = {}
+        defaults = {"key1": "value2"}
+        overwrites = {"key1": "value3"}
+
+        config_options = under_test.SelectedTestsConfigOptions(config, defaults=defaults,
+                                                               overwrites=overwrites)
+
+        self.assertEqual(overwrites["key1"], config_options.key1)
+
+
 class DivideRemainingTestsAmongSuitesTest(unittest.TestCase):
     @staticmethod
     def generate_tests_runtimes(n_tests):

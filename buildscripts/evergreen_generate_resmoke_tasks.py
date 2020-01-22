@@ -175,6 +175,40 @@ class ConfigOptions(object):
         return f"ConfigOptions({', '.join(required_values)})"
 
 
+class SelectedTestsConfigOptions(ConfigOptions):
+    """Retrieve configuration from a config file."""
+
+    def __init__(self, config, required_keys=None, defaults=None, formats=None, overwrites={}):
+        """
+        Create an instance of SelectedTestsConfigOptions.
+
+        :param config: Dictionary of configuration to use.
+        :param required_keys: Set of keys required by this config.
+        :param defaults: Dict of default values for keys.
+        :param formats: Dict with functions to format values before returning.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
+        """
+        self.config = {**config, **overwrites}
+        self.required_keys = required_keys if required_keys else set()
+        self.default_values = defaults if defaults else {}
+        self.formats = formats if formats else {}
+
+    @classmethod
+    def from_file(cls, filepath, required_keys, defaults, formats, overwrites):
+        """
+        Create an instance of SelectedTestsConfigOptions based on the given config file.
+
+        :param filepath: Path to file containing configuration.
+        :param required_keys: Set of keys required by this config.
+        :param defaults: Dict of default values for keys.
+        :param formats: Dict with functions to format values before returning.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
+        :return: Instance of ConfigOptions.
+        """
+        return cls(
+            read_config.read_config_file(filepath), required_keys, defaults, formats, overwrites)
+
+
 def enable_logging(verbose):
     """Enable verbose logging for execution."""
 
@@ -446,40 +480,6 @@ def should_tasks_be_generated(evg_api, task_id):
             return False
 
     return True
-
-
-class SelectedTestsConfigOptions(ConfigOptions):
-    """Retrieve configuration from a config file."""
-
-    def __init__(self, config, required_keys=None, defaults=None, formats=None, overwrites={}):
-        """
-        Create an instance of SelectedTestsConfigOptions.
-
-        :param config: Dictionary of configuration to use.
-        :param required_keys: Set of keys required by this config.
-        :param defaults: Dict of default values for keys.
-        :param formats: Dict with functions to format values before returning.
-        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
-        """
-        self.config = {**config, **overwrites}
-        self.required_keys = required_keys if required_keys else set()
-        self.default_values = defaults if defaults else {}
-        self.formats = formats if formats else {}
-
-    @classmethod
-    def from_file(cls, filepath, required_keys, defaults, formats, overwrites):
-        """
-        Create an instance of SelectedTestsConfigOptions based on the given config file.
-
-        :param filepath: Path to file containing configuration.
-        :param required_keys: Set of keys required by this config.
-        :param defaults: Dict of default values for keys.
-        :param formats: Dict with functions to format values before returning.
-        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
-        :return: Instance of ConfigOptions.
-        """
-        return cls(
-            read_config.read_config_file(filepath), required_keys, defaults, formats, overwrites)
 
 
 class EvergreenConfigGenerator(object):
