@@ -81,9 +81,9 @@ class TestAcceptance(unittest.TestCase):
 
     @staticmethod
     def _config_options(config_values):
-        return under_test.ConfigOptions(
-            config_values, under_test.REQUIRED_CONFIG_KEYS, under_test.DEFAULT_CONFIG_VALUES,
-            under_test.CONFIG_FORMAT_FN, under_test.OVERWRITE_CONFIG_VALUES)
+        return under_test.ConfigOptions(config_values, under_test.REQUIRED_CONFIG_KEYS,
+                                        under_test.DEFAULT_CONFIG_VALUES,
+                                        under_test.CONFIG_FORMAT_FN)
 
     @staticmethod
     def _mock_evg_api(successful_task=False):

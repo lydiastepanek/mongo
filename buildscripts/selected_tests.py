@@ -23,9 +23,9 @@ import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
 from buildscripts.burn_in_tests import (SELECTOR_FILE, create_task_list_for_tests)
 from buildscripts.ciconfig.evergreen import ResmokeArgs, parse_evergreen_file, EvergreenProjectConfig
-from buildscripts.evergreen_generate_resmoke_tasks import (CONFIG_FORMAT_FN, DEFAULT_CONFIG_VALUES,
-                                                           REQUIRED_CONFIG_KEYS, ConfigOptions,
-                                                           GenerateSubSuites, write_file_dict)
+from buildscripts.evergreen_generate_resmoke_tasks import (
+    CONFIG_FORMAT_FN, DEFAULT_CONFIG_VALUES, REQUIRED_CONFIG_KEYS, ConfigOptions, GenerateSubSuites,
+    write_file_dict, SelectedTestsConfigOptions)
 from buildscripts.patch_builds.change_data import find_changed_files
 
 structlog.configure(logger_factory=LoggerFactory())
@@ -105,7 +105,10 @@ def find_test_files_related_to_changed_files(selected_tests_auth_user: str,
     #  payload = {'changed_files': ",".join(changed_files)}
     #  payload = {'changed_files': "src/mongo/db/storage/kv/kv_drop_pending_ident_reaper.cpp"}
     #  payload = {'changed_files': "src/mongo/SConscript"}
-    payload = {'changed_files': "src/mongo/db/storage/wiredtiger/wiredtiger_oplog_manager.cpp"}
+    payload = {
+        'threshold': .1,
+        'changed_files': "src/mongo/db/storage/wiredtiger/wiredtiger_oplog_manager.cpp"
+    }
     headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
     cookies = dict(auth_user=selected_tests_auth_user, auth_token=selected_tests_auth_token)
     response = requests.get(
@@ -147,9 +150,9 @@ def generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, buil
     for task_name, burn_in_task_config in tests_by_task.items():
         overwrite_values = get_overwrite_values(evg_conf, build_variant, task_name,
                                                 burn_in_task_config)
-        config_options = ConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
-                                                 DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN,
-                                                 overwrite_values)
+        config_options = SelectedTestsConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
+                                                              DEFAULT_CONFIG_VALUES,
+                                                              CONFIG_FORMAT_FN, overwrite_values)
         suite_file_dict, shrub_config_json = GenerateSubSuites(
             evg_api, config_options).generate_config_dict(shrub_config)
         # suite_file_dict

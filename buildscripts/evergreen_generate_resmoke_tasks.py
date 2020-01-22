@@ -83,8 +83,6 @@ DEFAULT_CONFIG_VALUES = {
     "use_large_distro": False,
 }
 
-OVERWRITE_CONFIG_VALUES = {}
-
 CONFIG_FORMAT_FN = {
     "fallback_num_sub_suites": int,
     "max_sub_suites": int,
@@ -96,7 +94,7 @@ CONFIG_FORMAT_FN = {
 class ConfigOptions(object):
     """Retrieve configuration from a config file."""
 
-    def __init__(self, config, required_keys=None, defaults=None, formats=None, overwrites={}):
+    def __init__(self, config, required_keys=None, defaults=None, formats=None):
         """
         Create an instance of ConfigOptions.
 
@@ -104,15 +102,14 @@ class ConfigOptions(object):
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
-        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         """
-        self.config = {**config, **overwrites}
+        self.config = config
         self.required_keys = required_keys if required_keys else set()
         self.default_values = defaults if defaults else {}
         self.formats = formats if formats else {}
 
     @classmethod
-    def from_file(cls, filepath, required_keys, defaults, formats, overwrites):
+    def from_file(cls, filepath, required_keys, defaults, formats):
         """
         Create an instance of ConfigOptions based on the given config file.
 
@@ -120,11 +117,9 @@ class ConfigOptions(object):
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
-        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :return: Instance of ConfigOptions.
         """
-        return cls(
-            read_config.read_config_file(filepath), required_keys, defaults, formats, overwrites)
+        return cls(read_config.read_config_file(filepath), required_keys, defaults, formats)
 
     @property
     def depends_on(self):
@@ -453,6 +448,40 @@ def should_tasks_be_generated(evg_api, task_id):
     return True
 
 
+class SelectedTestsConfigOptions(ConfigOptions):
+    """Retrieve configuration from a config file."""
+
+    def __init__(self, config, required_keys=None, defaults=None, formats=None, overwrites={}):
+        """
+        Create an instance of SelectedTestsConfigOptions.
+
+        :param config: Dictionary of configuration to use.
+        :param required_keys: Set of keys required by this config.
+        :param defaults: Dict of default values for keys.
+        :param formats: Dict with functions to format values before returning.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
+        """
+        self.config = {**config, **overwrites}
+        self.required_keys = required_keys if required_keys else set()
+        self.default_values = defaults if defaults else {}
+        self.formats = formats if formats else {}
+
+    @classmethod
+    def from_file(cls, filepath, required_keys, defaults, formats, overwrites):
+        """
+        Create an instance of SelectedTestsConfigOptions based on the given config file.
+
+        :param filepath: Path to file containing configuration.
+        :param required_keys: Set of keys required by this config.
+        :param defaults: Dict of default values for keys.
+        :param formats: Dict with functions to format values before returning.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
+        :return: Instance of ConfigOptions.
+        """
+        return cls(
+            read_config.read_config_file(filepath), required_keys, defaults, formats, overwrites)
+
+
 class EvergreenConfigGenerator(object):
     """Generate evergreen configurations."""
 
@@ -577,7 +606,7 @@ class EvergreenConfigGenerator(object):
                                                  self.options.use_default_timeouts)
         # run_tests_vars
         # {'resmoke_args': '--suite=generated_resmoke_config/auth_0.yml --originSuite=auth --storageEngine=wiredTiger --repeatSuites=1 ', 'run_multiple_jobs': 'true', 'task': 'auth'}
-        if self.options.s3_bucket_task_name:
+        if isinstance(self.options, SelectedTestsConfigOptions):
             run_tests_vars["task"] = self.options.s3_bucket_task_name
         commands = resmoke_commands("run generated tests", run_tests_vars, timeout_info,
                                     use_multiversion)
@@ -604,7 +633,7 @@ class EvergreenConfigGenerator(object):
         self._generate_task(misc_suite_name, misc_task_name, self.options.generated_config_dir)
 
     def _generate_display_task(self):
-        if self.options.s3_bucket_task_name == "selected_tests":
+        if isinstance(self.options, SelectedTestsConfigOptions):
             dt = DisplayTaskDefinition(f"{self.options.task}_{self.options.variant}")\
                 .execution_tasks(self.task_names)
         else:
@@ -833,8 +862,7 @@ def main(expansion_file, evergreen_config, verbose):
     enable_logging(verbose)
     evg_api = RetryingEvergreenApi.get_api(config_file=evergreen_config)
     config_options = ConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
-                                             DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN,
-                                             OVERWRITE_CONFIG_VALUES)
+                                             DEFAULT_CONFIG_VALUES, CONFIG_FORMAT_FN)
 
     GenerateSubSuites(evg_api, config_options).run()
 
