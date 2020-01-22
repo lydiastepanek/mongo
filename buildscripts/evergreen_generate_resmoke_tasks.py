@@ -168,6 +168,40 @@ class ConfigOptions(object):
         return f"ConfigOptions({', '.join(required_values)})"
 
 
+class SelectedTestsConfigOptions(ConfigOptions):
+    """Retrieve configuration from a config file."""
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, config, overwrites, required_keys=None, defaults=None, formats=None):
+        """
+        Create an instance of SelectedTestsConfigOptions.
+
+        :param config: Dictionary of configuration to use.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
+        :param required_keys: Set of keys required by this config.
+        :param defaults: Dict of default values for keys.
+        :param formats: Dict with functions to format values before returning.
+        """
+        super(SelectedTestsConfigOptions, self).__init__({**config, **overwrites}, required_keys,
+                                                         defaults, formats)
+
+    @classmethod
+    # pylint: disable=too-many-arguments,W0221
+    def from_file(cls, filepath, overwrites, required_keys, defaults, formats):
+        """
+        Create an instance of SelectedTestsConfigOptions based on the given config file.
+
+        :param filepath: Path to file containing configuration.
+        :param overwrites: Dict of configuration values to overwrite those listed in filepath.
+        :param required_keys: Set of keys required by this config.
+        :param defaults: Dict of default values for keys.
+        :param formats: Dict with functions to format values before returning.
+        :return: Instance of ConfigOptions.
+        """
+        return cls(
+            read_config.read_config_file(filepath), overwrites, required_keys, defaults, formats)
+
+
 def enable_logging(verbose):
     """Enable verbose logging for execution."""
 
@@ -302,6 +336,7 @@ def divide_tests_into_suites(suite_name, tests_runtimes, max_time_seconds, max_s
     :return: List of Suite objects representing grouping of tests.
     """
     suites = []
+    Suite.reset_current_index()
     current_suite = Suite(suite_name)
     last_test_processed = len(tests_runtimes)
     LOGGER.debug("Determines suites for runtime", max_runtime_seconds=max_time_seconds,
@@ -443,12 +478,12 @@ def should_tasks_be_generated(evg_api, task_id):
 class EvergreenConfigGenerator(object):
     """Generate evergreen configurations."""
 
-    def __init__(self, suites, options, evg_api):
+    def __init__(self, shrub_config, suites, options, evg_api):
         """Create new EvergreenConfigGenerator object."""
         self.suites = suites
         self.options = options
         self.evg_api = evg_api
-        self.evg_config = Configuration()
+        self.evg_config = shrub_config
         self.task_specs = []
         self.task_names = []
         self.build_tasks = None
@@ -560,6 +595,10 @@ class EvergreenConfigGenerator(object):
         use_multiversion = self.options.use_multiversion
         timeout_info = self._get_timeout_command(max_test_runtime, expected_suite_runtime,
                                                  self.options.use_default_timeouts)
+        if isinstance(self.options, SelectedTestsConfigOptions):
+            # this ensures the selected tests generated task configs are fetched from the
+            # selected_tests s3 folder
+            run_tests_vars["task"] = "selected_tests"
         commands = resmoke_commands("run generated tests", run_tests_vars, timeout_info,
                                     use_multiversion)
 
@@ -583,9 +622,13 @@ class EvergreenConfigGenerator(object):
         self._generate_task(misc_suite_name, misc_task_name, self.options.generated_config_dir)
 
     def _generate_display_task(self):
-        dt = DisplayTaskDefinition(self.options.task)\
-            .execution_tasks(self.task_names) \
-            .execution_task("{0}_gen".format(self.options.task))
+        if isinstance(self.options, SelectedTestsConfigOptions):
+            dt = DisplayTaskDefinition(f"{self.options.task}_{self.options.variant}")\
+                .execution_tasks(self.task_names)
+        else:
+            dt = DisplayTaskDefinition(self.options.task)\
+                .execution_tasks(self.task_names) \
+                .execution_task("{0}_gen".format(self.options.task))
         return dt
 
     def _generate_variant(self):
@@ -621,6 +664,11 @@ class Suite(object):
 
         self.index = Suite._current_index
         Suite._current_index += 1
+
+    @classmethod
+    def reset_current_index(cls):
+        """Reset the current index."""
+        Suite._current_index = 0
 
     def add_test(self, test_file: str, runtime: float):
         """Add the given test to this suite."""
@@ -749,35 +797,42 @@ class GenerateSubSuites(object):
         """List the test files that are part of the suite being split."""
         return suitesconfig.get_suite(self.config_options.suite).tests
 
-    def render_evergreen_config(self, suites: List[Suite], task: str) -> Tuple[str, str]:
-        """Generate the evergreen configuration for the new suite and write it to disk."""
-        evg_config_gen = EvergreenConfigGenerator(suites, self.config_options, self.evergreen_api)
+    def render_evergreen_config(self, config: Configuration,
+                                suites: List[Suite]) -> Tuple[str, str]:
+        """Generate the evergreen configuration for the new suite."""
+        evg_config_gen = EvergreenConfigGenerator(config, suites, self.config_options,
+                                                  self.evergreen_api)
         evg_config = evg_config_gen.generate_config()
-        return task + ".json", evg_config.to_json()
+        return evg_config.to_json()
+
+    def generate_config_dict(self, shrub_config):
+        """Generate the evergreen configuration for the new suite and the generated task."""
+        end_date = datetime.datetime.utcnow().replace(microsecond=0)
+        start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
+        suites = self.calculate_suites(start_date, end_date)
+
+        LOGGER.debug("Creating suites", num_suites=len(suites), task=self.config_options.task,
+                     dir=self.config_options.generated_config_dir)
+        config_file_dict = render_suite_files(suites, self.config_options.suite, self.test_list,
+                                              self.config_options.test_suites_dir)
+        shrub_config_json = self.render_evergreen_config(shrub_config, suites)
+        return config_file_dict, shrub_config_json
 
     def run(self):
-        """Generate resmoke suites that run within a specified target execution time."""
+        """
+        Generate resmoke suites that run within a specified target execution time and write them
+        to disk.
+        """
         LOGGER.debug("config options", config_options=self.config_options)
-
         if not should_tasks_be_generated(self.evergreen_api, self.config_options.task_id):
             LOGGER.info("Not generating configuration due to previous successful generation.")
             return
 
-        end_date = datetime.datetime.utcnow().replace(microsecond=0)
-        start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
-        target_dir = self.config_options.generated_config_dir
+        shrub_config = Configuration()
+        config_file_dict, shrub_config_json = self.generate_config_dict(shrub_config)
 
-        suites = self.calculate_suites(start_date, end_date)
-
-        LOGGER.debug("Creating suites", num_suites=len(suites), task=self.config_options.task,
-                     dir=target_dir)
-        config_file_dict = render_suite_files(suites, self.config_options.suite, self.test_list,
-                                              self.config_options.test_suites_dir)
-
-        shrub_config = self.render_evergreen_config(suites, self.config_options.task)
-        config_file_dict[shrub_config[0]] = shrub_config[1]
-
-        write_file_dict(target_dir, config_file_dict)
+        config_file_dict[self.config_options.task + ".json"] = shrub_config_json
+        write_file_dict(self.config_options.generated_config_dir, config_file_dict)
 
 
 @click.command()
