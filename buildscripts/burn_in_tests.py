@@ -419,14 +419,6 @@ def create_task_list(evergreen_conf: EvergreenProjectConfig, build_variant: str,
     }
 
     # Return the list of tasks to run for the specified suite.
-    #  [task.resmoke_suite for task_name, task in all_variant_tasks.items() if task_name == "auth_audit"]
-    #  ['auth_audit']
-    #  [task.resmoke_suite for task in evg_build_variant.tasks if task.name == "auth_audit_gen"]
-    #  ['auth_audit']
-    #  (Pdb) [task.resmoke_suite for task in evg_build_variant.tasks if task.name == "sharding_jscore_passthrough_wire_ops_gen"]
-    #  ['sharding_jscore_passthrough']
-    #  (Pdb) [task.resmoke_suite for task_name, task in all_variant_tasks.items() if task_name == "sharding_jscore_passthrough_wire_ops"]
-    #  ['sharding_jscore_passthrough']
     task_list = {
         task_name: _gather_task_info(task, tests_by_suite, evergreen_conf, build_variant)
         for task_name, task in all_variant_tasks.items() if task.resmoke_suite in tests_by_suite
@@ -587,9 +579,7 @@ def create_generate_tasks_config(evg_config: Configuration, tests_by_task: Dict,
         resmoke_args = tests_by_task[task]["resmoke_args"]
         test_list = tests_by_task[task]["tests"]
         distro = tests_by_task[task].get("distro", generate_config.distro)
-        print(f"lydia test_list is {test_list}")
         for index, test in enumerate(test_list):
-            print(f"lydia index, test are {index} and {test}")
             # Evergreen always uses a unix shell, even on Windows, so instead of using os.path.join
             # here, just use the forward slash; otherwise the path separator will be treated as
             # the escape character on Windows.
@@ -724,7 +714,7 @@ def create_generate_tasks_file(tests_by_task: Dict, generate_config: GenerateCon
     Create an Evergreen generate.tasks file to run the given tasks and tests.
 
     :param tests_by_task: Dictionary of tests and tasks to run.
-    :param generate_config: Information about how should generate tasks.
+    :param generate_config: Information about how burn_in should generate tasks.
     :param repeat_config: Information about how burn_in should repeat tests.
     :param evg_api: Evergreen api.
     :param task_prefix: Prefix to start generated task's name with.
@@ -733,7 +723,6 @@ def create_generate_tasks_file(tests_by_task: Dict, generate_config: GenerateCon
     """
     evg_config = Configuration()
     if generate_config.use_multiversion:
-        # this will break
         evg_config = create_multiversion_generate_tasks_config(evg_config, tests_by_task, evg_api,
                                                                generate_config)
     else:

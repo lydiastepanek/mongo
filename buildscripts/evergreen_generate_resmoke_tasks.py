@@ -67,18 +67,12 @@ REQUIRED_CONFIG_KEYS = {
 DEFAULT_CONFIG_VALUES = {
     "generated_config_dir": "generated_resmoke_config",
     "max_tests_per_suite": 100,
-    # in expansions.yml, this is resmoke_args: --storageEngine=wiredTiger
-    # config shows '--storageEngine=wiredTiger'
     "resmoke_args": "",
     "resmoke_repeat_suites": 1,
     "run_multiple_jobs": "true",
-    # in expansions.yml, this is target_resmoke_time: "10"
-    # config shows 10
     "target_resmoke_time": 60,
     "test_suites_dir": DEFAULT_TEST_SUITE_DIR,
     "use_default_timeouts": False,
-    # in expansions.yml, this is use_large_distro: "true"
-    # config shows 'true'
     "use_large_distro": False,
 }
 
@@ -518,8 +512,6 @@ class EvergreenConfigGenerator(object):
             variables["resmoke_jobs_max"] = self.options.resmoke_jobs_max
 
         if self.options.use_multiversion:
-            # since multiversion tests against multiple versions of mongo,
-            # task_path_suffix is the path to the old version(s) of mongo
             variables["task_path_suffix"] = self.options.use_multiversion
 
         return variables
@@ -603,8 +595,6 @@ class EvergreenConfigGenerator(object):
         use_multiversion = self.options.use_multiversion
         timeout_info = self._get_timeout_command(max_test_runtime, expected_suite_runtime,
                                                  self.options.use_default_timeouts)
-        # run_tests_vars
-        # {'resmoke_args': '--suite=generated_resmoke_config/auth_0.yml --originSuite=auth --storageEngine=wiredTiger --repeatSuites=1 ', 'run_multiple_jobs': 'true', 'task': 'auth'}
         if isinstance(self.options, SelectedTestsConfigOptions):
             # this ensures the selected tests generated task configs are fetched from the
             # selected_tests s3 folder
@@ -615,9 +605,7 @@ class EvergreenConfigGenerator(object):
         self._add_dependencies(task).commands(commands)
 
     def _generate_all_tasks(self):
-        print(f"lydia suites are {self.suites}")
         for idx, suite in enumerate(self.suites):
-            print(f"lydia idx, suite are {idx} and {suite.name}")
             sub_task_name = taskname.name_generated_task(self.options.task, idx, len(self.suites),
                                                          self.options.variant)
             max_runtime = None
@@ -646,8 +634,6 @@ class EvergreenConfigGenerator(object):
     def _generate_variant(self):
         self._generate_all_tasks()
 
-        # self.evg_config.to_map()
-        # yes it will just keep adding tasks
         self.evg_config.variant(self.options.variant)\
             .tasks(self.task_specs)\
             .display_task(self._generate_display_task())

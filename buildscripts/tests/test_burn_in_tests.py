@@ -1,7 +1,6 @@
 """Unit tests for buildscripts/burn_in_tests.py."""
 
 from __future__ import absolute_import
-import pdb
 
 import collections
 import datetime
