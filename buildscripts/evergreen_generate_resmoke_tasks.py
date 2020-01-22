@@ -607,7 +607,9 @@ class EvergreenConfigGenerator(object):
         # run_tests_vars
         # {'resmoke_args': '--suite=generated_resmoke_config/auth_0.yml --originSuite=auth --storageEngine=wiredTiger --repeatSuites=1 ', 'run_multiple_jobs': 'true', 'task': 'auth'}
         if isinstance(self.options, SelectedTestsConfigOptions):
-            run_tests_vars["task"] = self.options.s3_bucket_task_name
+            # this ensures the selected tests generated task configs are fetched from the
+            # selected_tests s3 folder
+            run_tests_vars["task"] = "selected_tests"
         commands = resmoke_commands("run generated tests", run_tests_vars, timeout_info,
                                     use_multiversion)
 

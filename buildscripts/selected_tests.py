@@ -24,7 +24,7 @@ import buildscripts.util.read_config as read_config
 from buildscripts.burn_in_tests import (SELECTOR_FILE, create_task_list_for_tests)
 from buildscripts.ciconfig.evergreen import ResmokeArgs, parse_evergreen_file, EvergreenProjectConfig
 from buildscripts.evergreen_generate_resmoke_tasks import (
-    CONFIG_FORMAT_FN, DEFAULT_CONFIG_VALUES, REQUIRED_CONFIG_KEYS, ConfigOptions, GenerateSubSuites,
+    CONFIG_FORMAT_FN, DEFAULT_CONFIG_VALUES, REQUIRED_CONFIG_KEYS, GenerateSubSuites,
     write_file_dict, SelectedTestsConfigOptions)
 from buildscripts.patch_builds.change_data import find_changed_files
 
@@ -73,9 +73,11 @@ def _get_evg_api(evg_api_config: str, local_mode: bool) -> Optional[EvergreenApi
 
 def _check_file_exists_in_repo(repo, file_path: str) -> bool:
     '''
-    :param repo: The git python repo object
-    :param file_path: The full path to the file from the repository root
-    return: True if file is found in the repo at the specified path, false otherwise
+    Check if file exists in a repo.
+
+    :param repo: The git python repo object.
+    :param file_path: The relative path to the file from the repository root.
+    return: True if file is found in the repo at the specified path, false otherwise.
     '''
     pathdir = os.path.dirname(file_path)
     #Build up reference to desired repo path
@@ -92,6 +94,13 @@ def _check_file_exists_in_repo(repo, file_path: str) -> bool:
 
 
 def _filter_deleted_files(repo: Repo, related_test_files: Set[str]) -> Set[str]:
+    '''
+    Filter out files from a Set if they do not exist in the given repo.
+
+    :param repo: The git python repo object.
+    :param related_test_files: Set of files to filer.
+    return: Set of files that do exist in repo.
+    '''
     return {
         filepath
         for filepath in related_test_files if _check_file_exists_in_repo(repo, filepath)
@@ -100,43 +109,54 @@ def _filter_deleted_files(repo: Repo, related_test_files: Set[str]) -> Set[str]:
 
 def _find_related_test_files(selected_tests_auth_user: str, selected_tests_auth_token: str,
                              changed_files: Set[str], repo: Repo) -> Set[str]:
-    LOGGER.debug("Found changed files", files=changed_files)
-    #  payload = {'changed_files': ",".join(changed_files)}
-    #  payload = {'changed_files': "src/mongo/db/storage/kv/kv_drop_pending_ident_reaper.cpp"}
-    #  payload = {'changed_files': "src/mongo/SConscript"}
-    payload = {
-        'threshold': .1,
-        'changed_files': "src/mongo/db/storage/wiredtiger/wiredtiger_oplog_manager.cpp"
-    }
+    '''
+    For a list of changed files, make a request to the selected-tests service to return all test
+    files related to these changed files, then filter the test files.
+
+    :param selected_tests_auth_user: Selected-tests service auth user to authenticate request.
+    :param selected_tests_auth_token: Selected-tests service auth token to authenticate request.
+    :param changed_files: Set of changed_files.
+    :param repo: The git python repo object.
+    return: Set of test files returned by selected-tests service that do exist in repo.
+    '''
+    payload = {'threshold': .1, 'changed_files': ",".join(changed_files)}
     headers = {'Content-type': 'application/json', 'Accept': 'application/json'}
     cookies = dict(auth_user=selected_tests_auth_user, auth_token=selected_tests_auth_token)
     response = requests.get(
-        'https://selected-tests.server-tig.prod.corp.mongodb.com/projects/mongodb-mongo-master/test-mappings',
-        params=payload, headers=headers, cookies=cookies).json()
+        """
+        https://selected-tests.server-tig.prod.corp.mongodb.com
+        /projects/mongodb-mongo-master/test-mappings
+        """, params=payload, headers=headers, cookies=cookies).json()
     related_test_files = {
-        #  'jstests/auth/auth3.js'
-        #  'jstests/core/currentop_waiting_for_latch.js'
         test_file['name']
         for test_mapping in response['test_mappings'] for test_file in test_mapping['test_files']
     }
     return _filter_deleted_files(repo, related_test_files)
 
 
-def _get_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, task_name: str,
-                          burn_in_task_config: dict):
+def _create_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, task_name: str,
+                             burn_in_task_config: dict):
+    '''
+    Create overwrite values to pass in to initialize a SelectedTestsConfigOptions object.
+
+    :param evg_conf: Evergreen configuration.
+    :param build_variant: Build variant to collect task info from.
+    :param task_name: Name of task to get info for.
+    :param burn_in_task_config: The value for a given task_name in the tests_by_task dict.
+    return: Overwrite values.
+    '''
     evg_build_variant = evg_conf.get_variant(build_variant)
     task = evg_build_variant.get_task(task_name)
     if task.is_generate_resmoke_task:
         task_vars = task.generate_resmoke_tasks_command["vars"]
     else:
         task_vars = task.run_tests_command["vars"]
-        task_vars.update(
-            {'fallback_num_sub_suites': '1', 'display_task_suffix': f"_{build_variant}"})
+        task_vars.update({'fallback_num_sub_suites': '1'})
+
     tests_to_run = " ".join(burn_in_task_config['tests'])
     task_vars['resmoke_args'] = "{} {}".format(task_vars['resmoke_args'], tests_to_run)
-    overwrite_values = {
-        "task_name": task_name, "s3_bucket_task_name": "selected_tests", **task_vars
-    }
+
+    overwrite_values = {"task_name": task_name, **task_vars}
     suite_name = ResmokeArgs.get_arg(task_vars['resmoke_args'], "suites")
     if suite_name:
         overwrite_values.update({"suite": suite_name})
@@ -144,11 +164,23 @@ def _get_overwrite_values(evg_conf: EvergreenProjectConfig, build_variant: str, 
 
 
 def _generate_shrub_config(evg_api, evg_conf, expansion_file, tests_by_task, build_variant):
+    '''
+    Generate a dict containing file names and contents for the json file containing generated 
+    tasks config and the yml files containing suite configs.
+
+    :param evg_api: Evergreen API object.
+    :param evg_conf: Evergreen configuration.
+    :param expansion_file: Configuration file.
+    :param tests_by_task: Dictionary of tests and tasks to run.
+    :param build_variant: Build variant to collect task info from.
+    return: Dict of files and file contents for generated tasks.
+    '''
     shrub_config = Configuration()
     config_file_dict = {}
+    shrub_config_json = {}
     for task_name, burn_in_task_config in tests_by_task.items():
-        overwrite_values = _get_overwrite_values(evg_conf, build_variant, task_name,
-                                                 burn_in_task_config)
+        overwrite_values = _create_overwrite_values(evg_conf, build_variant, task_name,
+                                                    burn_in_task_config)
         config_options = SelectedTestsConfigOptions.from_file(expansion_file, REQUIRED_CONFIG_KEYS,
                                                               DEFAULT_CONFIG_VALUES,
                                                               CONFIG_FORMAT_FN, overwrite_values)
@@ -202,6 +234,7 @@ def main(verbose, expansion_file, evg_api_config, local_mode, build_variant, gen
     repo = Repo(".")
     changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
+    LOGGER.debug("Found changed files", files=changed_files)
     related_test_files = _find_related_test_files(selected_tests_auth_user,
                                                   selected_tests_auth_token, changed_files, repo)
     LOGGER.debug("related test files found", related_test_files=related_test_files)

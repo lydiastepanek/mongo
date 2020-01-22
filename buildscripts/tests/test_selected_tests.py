@@ -82,7 +82,7 @@ class TestCheckFileExistsInRepo(unittest.TestCase):
             self.assertFalse(under_test._check_file_exists_in_repo(repo, file_path))
 
 
-class TestFilterRelatedTestFiles(unittest.TestCase):
+class TestFilterDeletedTestFiles(unittest.TestCase):
     def test_filters_correct_files(self):
         with TemporaryDirectory() as tmpdir:
             repo = repo_with_one_files_1_and_2(tmpdir)
@@ -92,9 +92,9 @@ class TestFilterRelatedTestFiles(unittest.TestCase):
             self.assertEqual(filtered_test_files, {"jstests/file-1.js"})
 
 
-class TestFindTestFilesRelatedToChangedFiles(unittest.TestCase):
+class TestFindRelatedTestFiles(unittest.TestCase):
     @patch(ns("requests"))
-    def test_files_returned(self, requests_mock):
+    def test_related_files_returned_from_selected_tests_service(self, requests_mock):
         changed_files = {"src/file1.cpp", "src/file2.js"}
         response_object = {
             "test_mappings": [
@@ -111,13 +111,13 @@ class TestFindTestFilesRelatedToChangedFiles(unittest.TestCase):
 
             requests_mock.get.assert_called_with(
                 'https://selected-tests.server-tig.prod.corp.mongodb.com/projects/mongodb-mongo-master/test-mappings',
-                params={'changed_files': ",".join(changed_files)}, headers={
+                params={'threshold': 0.1, 'changed_files': ",".join(changed_files)}, headers={
                     'Content-type': 'application/json', 'Accept': 'application/json'
                 }, cookies={"auth_user": "auth_user", "auth_token": "auth_token"})
             self.assertEqual(related_test_files, {"jstests/file-1.js"})
 
     @patch(ns("requests"))
-    def no_test_files_returned(self, requests_mock):
+    def test_no_related_files_returned_from_selected_tests_service(self, requests_mock):
         changed_files = {"src/file1.cpp", "src/file2.js"}
         response_object = {"test_mappings": []}
         requests_mock.get.return_value.json.return_value = response_object
@@ -127,7 +127,7 @@ class TestFindTestFilesRelatedToChangedFiles(unittest.TestCase):
             related_test_files = under_test._find_related_test_files("auth_user", "auth_token",
                                                                      changed_files, repo)
 
-            self.assertEqual(related_test_files, [])
+            self.assertEqual(related_test_files, set())
 
 
 class TestGetOverwriteValues(unittest.TestCase):
@@ -137,19 +137,17 @@ class TestGetOverwriteValues(unittest.TestCase):
         burn_in_task_config = tests_by_task_stub()[task_name]
         evg_conf_mock = MagicMock()
         evg_conf_mock.get_variant.return_value.get_task.return_value = task
-        overwrite_values = under_test._get_overwrite_values(evg_conf_mock, "variant", task_name,
-                                                            burn_in_task_config)
+        overwrite_values = under_test._create_overwrite_values(evg_conf_mock, "variant", task_name,
+                                                               burn_in_task_config)
         # {'task_name': 'auth_gen', 's3_bucket_task_name': 'selected_tests',
         # 'fallback_num_sub_suites': '4', 'resmoke_args':
         # '--storageEngine=wiredTiger jstests/auth/auth3.js'}
-        self.assertEqual(overwrite_values["s3_bucket_task_name"], "selected_tests")
         self.assertEqual(overwrite_values["task_name"], task_name)
         # suite should be empty
         self.assertIsNone(overwrite_values.get("suite"))
         self.assertEqual(overwrite_values["resmoke_args"],
                          '--storageEngine=wiredTiger jstests/auth/auth3.js')
         self.assertEqual(overwrite_values["fallback_num_sub_suites"], "4")
-        self.assertIsNone(overwrite_values.get("display_task_suffix"))
 
     def test_task_is_not_a_generate_resmoke_task(self):
         task_name = "jsCore_auth"
@@ -157,10 +155,9 @@ class TestGetOverwriteValues(unittest.TestCase):
         burn_in_task_config = tests_by_task_stub()[task_name]
         evg_conf_mock = MagicMock()
         evg_conf_mock.get_variant.return_value.get_task.return_value = task
-        overwrite_values = under_test._get_overwrite_values(evg_conf_mock, "variant", task_name,
-                                                            burn_in_task_config)
+        overwrite_values = under_test._create_overwrite_values(evg_conf_mock, "variant", task_name,
+                                                               burn_in_task_config)
         #  {'task_name': 'jsCore_auth', 's3_bucket_task_name': 'selected_tests', 'resmoke_args': '--suites=core_auth jstests/core/currentop_waiting_for_latch.js jstests/core/latch_analyzer.js', 'fallback_num_sub_suites': '1'}
-        self.assertEqual(overwrite_values["s3_bucket_task_name"], "selected_tests")
         self.assertEqual(overwrite_values["task_name"], task_name)
         self.assertEqual(overwrite_values["suite"], "core_auth")
         self.assertEqual(
@@ -168,15 +165,15 @@ class TestGetOverwriteValues(unittest.TestCase):
             '--suites=core_auth jstests/core/currentop_waiting_for_latch.js jstests/core/latch_analyzer.js'
         )
         self.assertEqual(overwrite_values["fallback_num_sub_suites"], "1")
-        self.assertEqual(overwrite_values["display_task_suffix"], "_variant")
 
 
 class TestGenerateShrubConfig(unittest.TestCase):
-    @patch(ns("_get_overwrite_values"))
-    @patch(ns("ConfigOptions"))
+    @patch(ns("_create_overwrite_values"))
+    @patch(ns("SelectedTestsConfigOptions"))
     @patch(ns("GenerateSubSuites"))
-    def test_generate(self, generate_subsuites_mock, config_options_mock,
-                      get_overwrite_values_mock):
+    def test_when_test_by_task_returned(self, generate_subsuites_mock,
+                                        selected_tests_config_options_mock,
+                                        get_overwrite_values_mock):
         evg_api = MagicMock()
         evg_conf = MagicMock()
         expansion_file = MagicMock()
@@ -193,3 +190,22 @@ class TestGenerateShrubConfig(unittest.TestCase):
                 'auth_0.yml': yml_suite_file_contents,
                 'selected_tests_config.json': shrub_json_file_contents
             })
+
+    @patch(ns("_create_overwrite_values"))
+    @patch(ns("SelectedTestsConfigOptions"))
+    @patch(ns("GenerateSubSuites"))
+    def test_when_no_test_by_task_returned(self, generate_subsuites_mock,
+                                           selected_tests_config_options_mock,
+                                           get_overwrite_values_mock):
+        evg_api = MagicMock()
+        evg_conf = MagicMock()
+        expansion_file = MagicMock()
+        tests_by_task = {}
+        yml_suite_file_contents = MagicMock()
+        shrub_json_file_contents = MagicMock()
+        suite_file_dict_mock = {'auth_0.yml': yml_suite_file_contents}
+        generate_subsuites_mock.return_value.generate_config_dict.return_value = (
+            suite_file_dict_mock, shrub_json_file_contents)
+        config_file_dict = under_test._generate_shrub_config(evg_api, evg_conf, expansion_file,
+                                                             tests_by_task, "variant")
+        self.assertEqual(config_file_dict, {'selected_tests_config.json': {}})
