@@ -22,7 +22,7 @@ import requests
 import structlog
 import yaml
 
-from evergreen.api import RetryingEvergreenApi
+from evergreen.api import EvergreenApi, RetryingEvergreenApi
 from shrub.config import Configuration
 from shrub.task import TaskDependency
 from shrub.variant import DisplayTaskDefinition
@@ -144,6 +144,21 @@ class ConfigOptions(object):
         return remove_gen_suffix(self.task_name)
 
     @property
+    def run_tests_task(self):
+        """Return name of task name for s3 folder containing generated tasks config."""
+        return self.task
+
+    @property
+    def run_tests_build_variant(self):
+        """Return name of build_variant for s3 folder containing generated tasks config."""
+        return self.build_variant
+
+    @property
+    def run_tests_build_id(self):
+        """Return name of build_id for s3 folder containing generated tasks config."""
+        return self.build_id
+
+    @property
     def variant(self):
         """Return build variant is being run on."""
         return self.build_variant
@@ -158,6 +173,16 @@ class ConfigOptions(object):
             return self.formats[item](config[item])
 
         return config.get(item, None)
+
+    def generate_display_task(self, task_names: List[str]):
+        """
+        Generate a display task with execution tasks.
+
+        :param task_names: The names of the execution tasks to include under the display task.
+        """
+        return DisplayTaskDefinition(self.task) \
+                .execution_tasks(task_names) \
+                .execution_task("{0}_gen".format(self.task))
 
     def __getattr__(self, item):
         """Determine the value of the given attribute."""
@@ -303,6 +328,7 @@ def divide_tests_into_suites(suite_name, tests_runtimes, max_time_seconds, max_s
     :return: List of Suite objects representing grouping of tests.
     """
     suites = []
+    Suite.reset_current_index()
     current_suite = Suite(suite_name)
     last_test_processed = len(tests_runtimes)
     LOGGER.debug("Determines suites for runtime", max_runtime_seconds=max_time_seconds,
@@ -441,15 +467,96 @@ def should_tasks_be_generated(evg_api, task_id):
     return True
 
 
+class Suite(object):
+    """A suite of tests that can be run by evergreen."""
+
+    _current_index = 0
+
+    def __init__(self, source_name: str) -> None:
+        """
+        Initialize the object.
+
+        :param source_name: Base name of suite.
+        """
+        self.tests = []
+        self.total_runtime = 0
+        self.max_runtime = 0
+        self.tests_with_runtime_info = 0
+        self.source_name = source_name
+
+        self.index = Suite._current_index
+        Suite._current_index += 1
+
+    @classmethod
+    def reset_current_index(cls):
+        """Reset the current index."""
+        Suite._current_index = 0
+
+    def add_test(self, test_file: str, runtime: float):
+        """Add the given test to this suite."""
+
+        self.tests.append(test_file)
+        self.total_runtime += runtime
+
+        if runtime != 0:
+            self.tests_with_runtime_info += 1
+
+        if runtime > self.max_runtime:
+            self.max_runtime = runtime
+
+    def should_overwrite_timeout(self):
+        """
+        Whether the timeout for this suite should be overwritten.
+
+        We should only overwrite the timeout if we have runtime info for all tests.
+        """
+        return len(self.tests) == self.tests_with_runtime_info
+
+    def get_runtime(self):
+        """Get the current average runtime of all the tests currently in this suite."""
+
+        return self.total_runtime
+
+    def get_test_count(self):
+        """Get the number of tests currently in this suite."""
+
+        return len(self.tests)
+
+    @property
+    def name(self) -> str:
+        """Get the name of this suite."""
+        return taskname.name_generated_task(self.source_name, self.index, Suite._current_index)
+
+    def generate_resmoke_config(self, source_config: Dict) -> str:
+        """
+        Generate the contents of resmoke config for this suite.
+
+        :param source_config: Resmoke config to base generate config on.
+        :return: Resmoke config to run this suite.
+        """
+        suite_config = update_suite_config(deepcopy(source_config), roots=self.tests)
+        contents = HEADER_TEMPLATE.format(file=__file__, suite_file=self.source_name)
+        contents += yaml.safe_dump(suite_config, default_flow_style=False)
+        return contents
+
+
 class EvergreenConfigGenerator(object):
     """Generate evergreen configurations."""
 
-    def __init__(self, suites, options, evg_api):
-        """Create new EvergreenConfigGenerator object."""
+    def __init__(self, shrub_config: Configuration, suites: List[Suite], options: ConfigOptions,
+                 evg_api: EvergreenApi):
+        """
+        Create new EvergreenConfigGenerator object.
+
+        :param shrub_config: Shrub configuration the generated Evergreen config will be added to.
+        :param suites: The suite the Evergreen config will be generated for.
+        :param options: The ConfigOptions object containing the config file values.
+        :param evg_api: Evergreen API object.
+        """
         self.suites = suites
         self.options = options
         self.evg_api = evg_api
-        self.evg_config = Configuration()
+        self.evg_config = shrub_config
         self.task_specs = []
         self.task_names = []
         self.build_tasks = None
@@ -471,7 +578,9 @@ class EvergreenConfigGenerator(object):
         variables = {
             "resmoke_args": self._generate_resmoke_args(suite_file),
             "run_multiple_jobs": self.options.run_multiple_jobs,
-            "task": self.options.task,
+            "task": self.options.run_tests_task,
+            "build_variant": self.options.run_tests_build_variant,
+            "build_id": self.options.run_tests_build_id,
         }
 
         if self.options.resmoke_jobs_max:
@@ -583,92 +692,18 @@ class EvergreenConfigGenerator(object):
         misc_task_name = f"{self.options.task}_misc_{self.options.variant}"
         self._generate_task(misc_suite_name, misc_task_name, self.options.generated_config_dir)
 
-    def _generate_display_task(self):
-        dt = DisplayTaskDefinition(self.options.task)\
-            .execution_tasks(self.task_names) \
-            .execution_task("{0}_gen".format(self.options.task))
-        return dt
-
     def _generate_variant(self):
         self._generate_all_tasks()
 
         self.evg_config.variant(self.options.variant)\
             .tasks(self.task_specs)\
-            .display_task(self._generate_display_task())
+            .display_task(self.options.generate_display_task(self.task_names))
 
     def generate_config(self):
         """Generate evergreen configuration."""
         self.build_tasks = self.evg_api.tasks_by_build(self.options.build_id)
         self._generate_variant()
         return self.evg_config
-
-
-class Suite(object):
-    """A suite of tests that can be run by evergreen."""
-
-    _current_index = 0
-
-    def __init__(self, source_name: str) -> None:
-        """
-        Initialize the object.
-
-        :param source_name: Base name of suite.
-        """
-        self.tests = []
-        self.total_runtime = 0
-        self.max_runtime = 0
-        self.tests_with_runtime_info = 0
-        self.source_name = source_name
-
-        self.index = Suite._current_index
-        Suite._current_index += 1
-
-    def add_test(self, test_file: str, runtime: float):
-        """Add the given test to this suite."""
-
-        self.tests.append(test_file)
-        self.total_runtime += runtime
-
-        if runtime != 0:
-            self.tests_with_runtime_info += 1
-
-        if runtime > self.max_runtime:
-            self.max_runtime = runtime
-
-    def should_overwrite_timeout(self):
-        """
-        Whether the timeout for this suite should be overwritten.
-
-        We should only overwrite the timeout if we have runtime info for all tests.
-        """
-        return len(self.tests) == self.tests_with_runtime_info
-
-    def get_runtime(self):
-        """Get the current average runtime of all the tests currently in this suite."""
-
-        return self.total_runtime
-
-    def get_test_count(self):
-        """Get the number of tests currently in this suite."""
-
-        return len(self.tests)
-
-    @property
-    def name(self) -> str:
-        """Get the name of this suite."""
-        return taskname.name_generated_task(self.source_name, self.index, Suite._current_index)
-
-    def generate_resmoke_config(self, source_config: Dict) -> str:
-        """
-        Generate the contents of resmoke config for this suite.
-
-        :param source_config: Resmoke config to base generate config on.
-        :return: Resmoke config to run this suite.
-        """
-        suite_config = update_suite_config(deepcopy(source_config), roots=self.tests)
-        contents = HEADER_TEMPLATE.format(file=__file__, suite_file=self.source_name)
-        contents += yaml.safe_dump(suite_config, default_flow_style=False)
-        return contents
 
 
 class GenerateSubSuites(object):
@@ -750,35 +785,49 @@ class GenerateSubSuites(object):
         """List the test files that are part of the suite being split."""
         return suitesconfig.get_suite(self.config_options.suite).tests
 
-    def render_evergreen_config(self, suites: List[Suite], task: str) -> Tuple[str, str]:
-        """Generate the evergreen configuration for the new suite and write it to disk."""
-        evg_config_gen = EvergreenConfigGenerator(suites, self.config_options, self.evergreen_api)
+    def render_evergreen_config(self, shrub_config: Configuration, suites: List[Suite]) -> str:
+        """
+        Generate the evergreen configuration for the new suite.
+
+        :param shrub_config: Shrub configuration the generated Evergreen config will be added to.
+        :param suites: The suite the generated Evergreen config will be generated for.
+        :return: The generated Evergreen config string in json format.
+        """
+        evg_config_gen = EvergreenConfigGenerator(shrub_config, suites, self.config_options,
+                                                  self.evergreen_api)
         evg_config = evg_config_gen.generate_config()
-        return task + ".json", evg_config.to_json()
+        return evg_config.to_json()
+
+    def generate_task_config_and_suites(self, shrub_config: Configuration) -> Tuple[dict, str]:
+        """
+        Generate the suites files and evergreen configuration for the generated task.
+
+        :param shrub_config: Shrub configuration the generated Evergreen config will be added to.
+        :return: The suites files and evergreen configuration for the generated task.
+        """
+        end_date = datetime.datetime.utcnow().replace(microsecond=0)
+        start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
+        suites = self.calculate_suites(start_date, end_date)
+
+        LOGGER.debug("Creating suites", num_suites=len(suites), task=self.config_options.task,
+                     dir=self.config_options.generated_config_dir)
+        suite_files_dict = render_suite_files(suites, self.config_options.suite, self.test_list,
+                                              self.config_options.test_suites_dir)
+        shrub_task_config = self.render_evergreen_config(shrub_config, suites)
+        return suite_files_dict, shrub_task_config
 
     def run(self):
-        """Generate resmoke suites that run within a specified target execution time."""
+        """Generate resmoke suites that run within a target execution time and write to disk."""
         LOGGER.debug("config options", config_options=self.config_options)
-
         if not should_tasks_be_generated(self.evergreen_api, self.config_options.task_id):
             LOGGER.info("Not generating configuration due to previous successful generation.")
             return
 
-        end_date = datetime.datetime.utcnow().replace(microsecond=0)
-        start_date = end_date - datetime.timedelta(days=LOOKBACK_DURATION_DAYS)
-        target_dir = self.config_options.generated_config_dir
+        shrub_config = Configuration()
+        suite_files_dict, shrub_task_config = self.generate_task_config_and_suites(shrub_config)
 
-        suites = self.calculate_suites(start_date, end_date)
-
-        LOGGER.debug("Creating suites", num_suites=len(suites), task=self.config_options.task,
-                     dir=target_dir)
-        config_file_dict = render_suite_files(suites, self.config_options.suite, self.test_list,
-                                              self.config_options.test_suites_dir)
-
-        shrub_config = self.render_evergreen_config(suites, self.config_options.task)
-        config_file_dict[shrub_config[0]] = shrub_config[1]
-
-        write_file_dict(target_dir, config_file_dict)
+        suite_files_dict[self.config_options.task + ".json"] = shrub_task_config
+        write_file_dict(self.config_options.generated_config_dir, suite_files_dict)
 
 
 @click.command()
