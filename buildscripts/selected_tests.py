@@ -50,7 +50,7 @@ EXTERNAL_LOGGERS = {
     "urllib3",
 }
 SELECTED_TESTS_CONFIG_DIR = "generated_resmoke_config"
-THRESHOLD_FOR_RELATED_TESTS = 0.1
+RELATION_THRESHOLD = 0.1
 
 
 class SelectedTestsConfigOptions(ConfigOptions):
@@ -124,13 +124,27 @@ def _find_related_test_files(
     :param changed_files: Set of changed_files.
     return: Set of test files returned by selected-tests service that are valid test files.
     """
-    test_mappings = selected_tests_service.get_test_mappings(THRESHOLD_FOR_RELATED_TESTS,
-                                                             changed_files)
+    test_mappings = selected_tests_service.get_test_mappings(RELATION_THRESHOLD, changed_files)
     return {
         test_file["name"]
         for test_mapping in test_mappings for test_file in test_mapping["test_files"]
         if is_file_a_test_file(test_file["name"])
     }
+
+
+def _find_related_tasks(
+        selected_tests_service: SelectedTestsService,
+        changed_files: Set[str],
+) -> Set[str]:
+    """
+    Request related tasks from selected-tests service.
+
+    :param selected_tests_service: Selected-tests service.
+    :param changed_files: Set of changed_files.
+    return: Set of tasks returned by selected-tests service that are valid tasks.
+    """
+    task_mappings = selected_tests_service.get_task_mappings(RELATION_THRESHOLD, changed_files)
+    return {task["name"] for task_mapping in task_mappings for task in task_mapping["tasks"]}
 
 
 def _get_selected_tests_task_configuration(expansion_file):

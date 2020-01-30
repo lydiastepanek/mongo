@@ -47,7 +47,7 @@ class SelectedTestsService(object):
 
     def get_test_mappings(self, threshold: float, changed_files: Set[str]):
         """
-        Request related test files from selected-tests service and filter them.
+        Request related test files from selected-tests service.
 
         :param threshold: Threshold for test file correlation.
         :param changed_files: Set of changed_files.
@@ -63,3 +63,22 @@ class SelectedTestsService(object):
         response.raise_for_status()
 
         return response.json()["test_mappings"]
+
+    def get_task_mappings(self, threshold: float, changed_files: Set[str]):
+        """
+        Request related tasks from selected-tests service.
+
+        :param threshold: Threshold for task correlation.
+        :param changed_files: Set of changed_files.
+        return: Set of related tasks returned by selected-tests service.
+        """
+        payload = {"threshold": threshold, "changed_files": ",".join(changed_files)}
+        response = requests.get(
+            self.url + "/projects/mongodb-mongo-master/task-mappings",
+            params=payload,
+            headers=self.headers,
+            cookies=self.cookies,
+        )
+        response.raise_for_status()
+
+        return response.json()["task_mappings"]
