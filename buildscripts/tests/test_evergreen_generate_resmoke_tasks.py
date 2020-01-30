@@ -805,6 +805,7 @@ class GenerateSubSuitesTest(unittest.TestCase):
         ]
         config_options = self.get_mock_options()
         config_options.max_sub_suites = 1000
+        config_options.selected_tests_to_run = None
 
         gen_sub_suites = under_test.GenerateSubSuites(evg, config_options)
 
@@ -883,6 +884,30 @@ class GenerateSubSuitesTest(unittest.TestCase):
 
         with self.assertRaises(requests.HTTPError):
             gen_sub_suites.calculate_suites(_DATE, _DATE)
+
+    def test_calculate_suites_with_selected_tests_to_run(self):
+        evg = MagicMock()
+        evg.test_stats_by_project.return_value = [
+            tst_stat_mock(f"test{i}.js", 60, 1) for i in range(100)
+        ]
+        config_options = self.get_mock_options()
+        config_options.max_sub_suites = 1000
+        config_options.selected_tests_to_run = ["test1.js", "test2.js"]
+
+        gen_sub_suites = under_test.GenerateSubSuites(evg, config_options)
+
+        with patch("os.path.exists") as exists_mock, patch(ns("suitesconfig")) as suitesconfig_mock:
+            exists_mock.return_value = True
+            suitesconfig_mock.get_suite.return_value.tests = \
+                [stat.test_file for stat in evg.test_stats_by_project.return_value]
+            suites = gen_sub_suites.calculate_suites(_DATE, _DATE)
+
+            # There are 100 tests taking 1 minute, with a target of 10 min we expect 10 suites.
+            # However, since we have selected only 2 tests to run, test1.js and
+            # test2.js, only 1 suite should be created.
+            self.assertEqual(1, len(suites))
+            for suite in suites:
+                self.assertEqual(2, len(suite.tests))
 
     def test_filter_missing_files(self):
         tests_runtimes = [

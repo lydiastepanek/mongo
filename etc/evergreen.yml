@@ -492,6 +492,7 @@ functions:
         # Create the Evergreen API credentials
         cat > .selected_tests.yml <<END_OF_CREDS
         url: "https://selected-tests.server-tig.prod.corp.mongodb.com"
+        project: "${project}"
         auth_user: "${selected_tests_auth_user}"
         auth_token: "${selected_tests_auth_token}"
         END_OF_CREDS
@@ -1515,11 +1516,25 @@ functions:
         working_dir: src
         shell: bash
         script: |
-          set -o errexit
-          set -o verbose
+          # Only run on master branch
+          if [[ "${project}" != "mongodb-mongo-master" ]]; then
 
-          ${activate_virtualenv}
-          PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant=enterprise-rhel-62-64-bit --selected-tests-config .selected_tests.yml
+            if [ "${is_patch}" = "true" ]; then
+              echo "Not on master, skipping selected_tests_gen task"
+              exit 1
+            else
+              exit 0
+            fi
+
+          else
+
+            set -o errexit
+            set -o verbose
+
+            ${activate_virtualenv}
+            PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant=enterprise-rhel-62-64-bit --selected-tests-config .selected_tests.yml
+
+          fi
     - command: archive.targz_pack
       params:
         target: generate_tasks_config.tgz

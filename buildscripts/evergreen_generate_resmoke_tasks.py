@@ -754,6 +754,9 @@ class GenerateSubSuites(object):
         """Divide tests into suites that can be run in less than the specified execution time."""
         test_stats = teststats.TestStats(data)
         tests_runtimes = self.filter_existing_tests(test_stats.get_tests_runtimes())
+        if self.config_options.selected_tests_to_run:
+            tests_runtimes = filter_specified_tests(self.config_options.selected_tests_to_run,
+                                                    tests_runtimes)
         if not tests_runtimes:
             LOGGER.debug("No test runtimes after filter, using fallback")
             return self.calculate_fallback_suites()
@@ -828,6 +831,17 @@ class GenerateSubSuites(object):
 
         suite_files_dict[self.config_options.task + ".json"] = shrub_task_config
         write_file_dict(self.config_options.generated_config_dir, suite_files_dict)
+
+
+def filter_specified_tests(specified_tests: List[str], tests_runtimes: List[teststats.TestRuntime]):
+    """
+    Filter out tests that have not been specified in the specified tests config option.
+
+    :param specified_tests: List of test files that should be run.
+    :param tests_runtimes: List of tuples containing test names and test runtimes.
+    return: List of TestRuntime tuples that match specified_tests.
+    """
+    return [info for info in tests_runtimes if info.test_name in specified_tests]
 
 
 @click.command()

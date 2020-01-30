@@ -171,10 +171,10 @@ def _get_evg_task_configuration(
         task_vars = task.run_tests_command["vars"]
         task_vars.update({"fallback_num_sub_suites": "1"})
 
-    tests_to_run = " ".join(test_list_info["tests"])
-    task_vars["resmoke_args"] = "{} {}".format(task_vars["resmoke_args"], tests_to_run)
-
-    evg_task_config = {"task_name": task_name, "build_variant": build_variant, **task_vars}
+    evg_task_config = {
+        "task_name": task_name, "build_variant": build_variant,
+        "selected_tests_to_run": test_list_info["tests"], **task_vars
+    }
     suite_name = ResmokeArgs.get_arg(task_vars["resmoke_args"], "suites")
     if suite_name:
         evg_task_config.update({"suite": suite_name})

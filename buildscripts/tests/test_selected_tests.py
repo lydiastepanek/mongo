@@ -207,10 +207,11 @@ class TestGetEvgTaskConfiguration(unittest.TestCase):
 
         self.assertEqual(evg_task_config["task_name"], task_name)
         self.assertEqual(evg_task_config["build_variant"], "variant")
+        self.assertEqual(evg_task_config["selected_tests_to_run"], ["jstests/auth/auth3.js"])
         self.assertIsNone(evg_task_config.get("suite"))
         self.assertEqual(
             evg_task_config["resmoke_args"],
-            "--storageEngine=wiredTiger jstests/auth/auth3.js",
+            "--storageEngine=wiredTiger",
         )
         self.assertEqual(evg_task_config["fallback_num_sub_suites"], "4")
 
@@ -226,10 +227,13 @@ class TestGetEvgTaskConfiguration(unittest.TestCase):
 
         self.assertEqual(evg_task_config["task_name"], task_name)
         self.assertEqual(evg_task_config["build_variant"], "variant")
+        self.assertEqual(
+            evg_task_config["selected_tests_to_run"],
+            ["jstests/core/currentop_waiting_for_latch.js", "jstests/core/latch_analyzer.js"])
         self.assertEqual(evg_task_config["suite"], "core_auth")
         self.assertEqual(
             evg_task_config["resmoke_args"],
-            "--suites=core_auth jstests/core/currentop_waiting_for_latch.js jstests/core/latch_analyzer.js",
+            "--suites=core_auth",
         )
         self.assertEqual(evg_task_config["fallback_num_sub_suites"], "1")
 

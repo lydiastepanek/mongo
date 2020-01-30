@@ -3,6 +3,7 @@ import os
 import unittest
 
 from tempfile import TemporaryDirectory
+import requests
 from mock import MagicMock, patch
 
 # pylint: disable=wrong-import-position
@@ -24,11 +25,14 @@ class TestSelectedTestsService(unittest.TestCase):
             config_file = os.path.join(tmpdir, "selected_tests_test_config.yml")
             with open(config_file, "w") as fh:
                 fh.write("url: url\n")
+                fh.write("project: project\n")
                 fh.write("auth_user: user\n")
                 fh.write("auth_token: token\n")
 
             selected_tests_service = under_test.SelectedTestsService.from_file(config_file)
 
+            self.assertEqual(selected_tests_service.url, "url")
+            self.assertEqual(selected_tests_service.project, "project")
             self.assertEqual(selected_tests_service.auth_user, "user")
             self.assertEqual(selected_tests_service.auth_token, "token")
 
@@ -53,12 +57,12 @@ class TestSelectedTestsService(unittest.TestCase):
         }
         requests_mock.get.return_value.json.return_value = response_object
 
-        related_test_files = under_test.SelectedTestsService("my-url.com", "auth_user",
-                                                             "auth_token").get_test_mappings(
-                                                                 0.1, changed_files)
+        related_test_files = under_test.SelectedTestsService(
+            "my-url.com", "my-project", "auth_user", "auth_token").get_test_mappings(
+                0.1, changed_files)
 
         requests_mock.get.assert_called_with(
-            "my-url.com/projects/mongodb-mongo-master/test-mappings",
+            "my-url.com/projects/my-project/test-mappings",
             params={"threshold": 0.1, "changed_files": ",".join(changed_files)},
             headers={
                 "Content-type": "application/json",
@@ -69,13 +73,23 @@ class TestSelectedTestsService(unittest.TestCase):
         self.assertEqual(related_test_files, response_object["test_mappings"])
 
     @patch(ns("requests"))
+    def test_selected_tests_service_unavailable(self, requests_mock):
+        changed_files = {"src/file1.cpp", "src/file2.js"}
+        response = MagicMock(status_code=requests.codes.SERVICE_UNAVAILABLE)
+        requests_mock.get.side_effect = requests.HTTPError(response=response)
+
+        with self.assertRaises(requests.exceptions.HTTPError):
+            under_test.SelectedTestsService("my-url.com", "my-project", "auth_user",
+                                            "auth_token").get_test_mappings(0.1, changed_files)
+
+    @patch(ns("requests"))
     def test_no_files_returned(self, requests_mock):
         changed_files = {"src/file1.cpp", "src/file2.js"}
         response_object = {"test_mappings": []}
         requests_mock.get.return_value.json.return_value = response_object
 
-        related_test_files = under_test.SelectedTestsService("my-url.com", "auth_user",
-                                                             "auth_token").get_test_mappings(
-                                                                 0.1, changed_files)
+        related_test_files = under_test.SelectedTestsService(
+            "my-url.com", "my-project", "auth_user", "auth_token").get_test_mappings(
+                0.1, changed_files)
 
         self.assertEqual(related_test_files, [])
