@@ -3,6 +3,7 @@
 import collections
 import optparse
 import os
+import pdb
 
 from . import config as _config
 from . import errors
@@ -103,6 +104,14 @@ def get_suites(suite_files, test_files):
 
 def get_suite(suite_file):
     """Retrieve the Suite instance corresponding to a suite configuration file."""
+    #  (Pdb) suite_file
+    #  'concurrency_sharded_local_read_write_multi_stmt_txn'
+    #  (Pdb) _config.NAMED_SUITES[suite_file]
+    #  '/Users/lydia.stepanek/src/mongo/buildscripts/resmokeconfig/suites/concurrency_sharded_local_read_write_multi_stmt_txn.yml'
+    #  (Pdb) suite_file
+    #  'unittests'
+    #  (Pdb) _config.NAMED_SUITES[suite_file]
+    #  '/Users/lydia.stepanek/src/mongo/buildscripts/resmokeconfig/suites/unittests.yml'
     suite_config = _get_suite_config(suite_file)
     return _suite.Suite(suite_file, suite_config)
 
