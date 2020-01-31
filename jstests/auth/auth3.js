@@ -1,5 +1,4 @@
 (function() {
-// hi
 
 'use strict';
 
