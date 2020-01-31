@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
+import pdb
 
 import click
 import structlog
@@ -189,6 +190,9 @@ def _get_evg_task_configuration(task: Task, build_variant: str):
     """
     if task.is_generate_resmoke_task:
         task_vars = task.generate_resmoke_tasks_command["vars"]
+    if task.is_generate_fuzzer_task:
+        task_vars = task.generate_fuzzer_tasks_command["vars"]
+        task_vars.update({"fallback_num_sub_suites": "1"})
     else:
         task_vars = task.run_tests_command["vars"]
         task_vars.update({"fallback_num_sub_suites": "1"})

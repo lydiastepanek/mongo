@@ -72,7 +72,11 @@ class SelectedTestsService(object):
         :param changed_files: Set of changed_files.
         return: Set of related tasks returned by selected-tests service.
         """
-        payload = {"threshold": threshold, "changed_files": ",".join(changed_files)}
+        #  payload = {"threshold": threshold, "changed_files": ",".join(changed_files)}
+        payload = {
+            "threshold": threshold,
+            "changed_files": "src/mongo/db/storage/wiredtiger/wiredtiger_oplog_manager.cpp"
+        }
         response = requests.get(
             self.url + "/projects/mongodb-mongo-master/task-mappings",
             params=payload,
