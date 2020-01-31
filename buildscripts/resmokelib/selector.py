@@ -12,7 +12,6 @@ import os.path
 import random
 import subprocess
 import sys
-import pdb
 
 import buildscripts.ciconfig.tags as _tags
 from . import config
@@ -421,21 +420,6 @@ class _Selector(object):
         """
 
         # 1. Find the root files.
-        pdb.set_trace()
-        #  (Pdb) selector_config
-        #  <buildscripts.resmokelib.selector._JSTestSelectorConfig object at 0x1067fe358>
-        #  (Pdb) selector_config.roots
-        #  ['jstestfuzz/out/*.js']
-        #  ['jstests/concurrency/fsm_workloads/**/*.js']
-        #  (Pdb) selector_config
-        #  <buildscripts.resmokelib.selector._CppTestSelectorConfig object at
-        #  0x1050be748>
-        #  (Pdb) self._test_file_explorer.read_root_file(selector_config.root)
-        #  *** FileNotFoundError: [Errno 2] No such file or directory:
-        #  'build/unittests.txt'
-        #  (Pdb) selector_config.root
-        #  'build/unittests.txt'
-
         if selector_config.roots is not None:
             roots = selector_config.roots
         else:
