@@ -190,7 +190,7 @@ def _get_evg_task_configuration(task: Task, build_variant: str):
     """
     if task.is_generate_resmoke_task:
         task_vars = task.generate_resmoke_tasks_command["vars"]
-    if task.is_generate_fuzzer_task:
+    elif task.is_generate_fuzzer_task:
         task_vars = task.generate_fuzzer_tasks_command["vars"]
         task_vars.update({"fallback_num_sub_suites": "1"})
     else:
