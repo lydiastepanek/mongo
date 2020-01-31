@@ -53,6 +53,10 @@ EXTERNAL_LOGGERS = {
 }
 SELECTED_TESTS_CONFIG_DIR = "generated_resmoke_config"
 RELATION_THRESHOLD = 0.1
+CPP_TASK_NAMES = [
+    "dbtest", "unittests", "integration_tests_standalone", "integration_tests_standalone_audit",
+    "integration_tests_replset", "integration_tests_sharded"
+]
 
 
 class SelectedTestsConfigOptions(ConfigOptions):
@@ -146,7 +150,11 @@ def _find_related_tasks(
     return: Set of tasks returned by selected-tests service that are valid tasks.
     """
     task_mappings = selected_tests_service.get_task_mappings(RELATION_THRESHOLD, changed_files)
-    return {task["name"] for task_mapping in task_mappings for task in task_mapping["tasks"]}
+    return {
+        task["name"]
+        for task_mapping in task_mappings for task in task_mapping["tasks"]
+        if not task["name"] in CPP_TASK_NAMES
+    }
 
 
 def _get_selected_tests_task_configuration(expansion_file):
