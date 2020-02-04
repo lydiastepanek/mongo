@@ -1534,7 +1534,7 @@ functions:
     - command: archive.targz_pack
       params:
         target: generate_tasks_config.tgz
-        source_dir: src/generated_resmoke_config
+        source_dir: src/selected_tests_config
         include:
           - "*"
     - command: s3.put
@@ -1552,7 +1552,7 @@ functions:
       params:
         optional: true
         files:
-          - src/generated_resmoke_config/*.json
+          - src/selected_tests_config/*.json
 
   "generate burn in tags":
     - command: expansions.write
