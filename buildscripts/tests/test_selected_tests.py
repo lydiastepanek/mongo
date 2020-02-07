@@ -413,6 +413,7 @@ class TestRun(unittest.TestCase):
     @patch(ns("_get_task_configs_for_task_mappings"))
     @patch(ns("_find_selected_tasks"))
     @patch(ns("_update_config_with_task"))
+    # pylint: disable=too-many-arguments
     def test_run_with_related_tasks_but_no_related_tests(
             self, update_config_with_task_mock, find_selected_tasks_mock,
             get_task_configs_for_task_mappings_mock, find_selected_test_files_mock,

@@ -449,7 +449,6 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file:
     metavar="FILE",
     help="Configuration file with connection info for selected tests service.",
 )
-# pylint: disable=too-many-arguments
 def main(
         verbose: bool,
         expansion_file: str,
