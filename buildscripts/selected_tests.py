@@ -125,11 +125,13 @@ class SelectedTestsConfigOptions(ConfigOptions):
 
     @classmethod
     # pylint: disable=too-many-arguments,W0221
-    def from_file(cls, origin_variant_expansions, filepath: str, overwrites: Dict[str, Any],
-                  required_keys: Set[str], defaults: Dict[str, Any], formats: Dict[str, type]):
+    def from_file(cls, origin_variant_expansions: Dict[str, str], filepath: str,
+                  overwrites: Dict[str, Any], required_keys: Set[str], defaults: Dict[str, Any],
+                  formats: Dict[str, type]):
         """
         Create an instance of SelectedTestsConfigOptions based on the given config file.
 
+        :param origin_variant_expansions: Expansions of the origin build variant.
         :param filepath: Path to file containing configuration.
         :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :param required_keys: Set of keys required by this config.
@@ -301,28 +303,17 @@ def _get_evg_task_config(
     }
 
 
-def _update_config_with_task(evg_api: EvergreenApi, origin_variant_expansions, expansion_file: str,
-                             evg_task_config: Dict[str, Any], shrub_config: Configuration,
+def _update_config_with_task(evg_api: EvergreenApi, shrub_config: Configuration,
+                             config_options: SelectedTestsConfigOptions,
                              config_dict_of_suites_and_tasks: Dict[str, str]):
     """
     Generate the suites config and the task shrub config for a given task config.
 
     :param evg_api: Evergreen API object.
-    :param expansion_file: Configuration file.
-    :param evg_task_config: Dict containing task config to be passed to SelectedTestsConfigOptions.
     :param shrub_config: Shrub configuration for task.
+    :param config_options: Task configuration options.
     :param config_dict_of_suites_and_tasks: Dict of shrub configs and suite file contents.
     """
-    config_options = SelectedTestsConfigOptions.from_file(
-        origin_variant_expansions,
-        expansion_file,
-        evg_task_config,
-        REQUIRED_CONFIG_KEYS,
-        DEFAULT_CONFIG_VALUES,
-        CONFIG_FORMAT_FN,
-    )
-    LOGGER.debug("Calculated overwrite_values", overwrite_values=evg_task_config)
-
     task_generator = GenerateSubSuites(evg_api, config_options)
     suites = task_generator.get_suites()
 
@@ -346,6 +337,7 @@ def _get_task_configs_for_test_mappings(expansion_file: str, tests_by_task: Dict
     for task_name, test_list_info in tests_by_task.items():
         evg_task_config = _get_evg_task_config(expansion_file, task_name, build_variant_config)
         evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
+        LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
         evg_task_configs[task_name] = evg_task_config
 
     return evg_task_configs
@@ -364,6 +356,7 @@ def _get_task_configs_for_task_mappings(expansion_file: str, related_tasks: List
     evg_task_configs = {}
     for task_name in related_tasks:
         evg_task_config = _get_evg_task_config(expansion_file, task_name, build_variant_config)
+        LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
         evg_task_configs[task_name] = evg_task_config
 
     return evg_task_configs
@@ -413,8 +406,16 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file:
     origin_variant_expansions = build_variant_config.expansions
 
     for _, task_config in task_configs.items():
-        _update_config_with_task(evg_api, origin_variant_expansions, expansion_file, task_config,
-                                 shrub_config, config_dict_of_suites_and_tasks)
+        config_options = SelectedTestsConfigOptions.from_file(
+            origin_variant_expansions,
+            expansion_file,
+            task_config,
+            REQUIRED_CONFIG_KEYS,
+            DEFAULT_CONFIG_VALUES,
+            CONFIG_FORMAT_FN,
+        )
+        _update_config_with_task(evg_api, shrub_config, config_options,
+                                 config_dict_of_suites_and_tasks)
 
     config_dict_of_suites_and_tasks["selected_tests_config.json"] = shrub_config.to_json()
     return config_dict_of_suites_and_tasks
