@@ -5,7 +5,6 @@ import logging
 import os
 import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
-import pdb
 
 import click
 import structlog

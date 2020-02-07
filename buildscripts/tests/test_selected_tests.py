@@ -1,7 +1,6 @@
 """Unit tests for the selected_tests script."""
 import os
 import unittest
-import pdb
 
 from mock import MagicMock, patch
 from shrub.config import Configuration
