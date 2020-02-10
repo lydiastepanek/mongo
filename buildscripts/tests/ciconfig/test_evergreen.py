@@ -178,6 +178,27 @@ class TestTask(unittest.TestCase):  # pylint: disable=too-many-public-methods
         self.assertIsNone(task.multiversion_setup_command)
         self.assertIsNone(task.multiversion_path)
 
+    def test_is_generate_fuzzer_task(self):
+        task_commands = [{
+            "func": "generate fuzzer tasks",
+            "vars": {"resmoke_args": "--suites=core --shellWriteMode=commands"}
+        }]
+        task_dict = {"name": "initial_sync_fuzzer_gen", "commands": task_commands}
+        task = _evergreen.Task(task_dict)
+
+        self.assertTrue(task.is_generate_fuzzer_task)
+        self.assertFalse(task.is_generate_resmoke_task)
+
+    def test_generate_fuzzer_tasks_command(self):
+        task_commands = [{
+            "func": "generate fuzzer tasks",
+            "vars": {"resmoke_args": "--suites=core --shellWriteMode=commands"}
+        }]
+        task_dict = {"name": "initial_sync_fuzzer_gen", "commands": task_commands}
+        task = _evergreen.Task(task_dict)
+
+        self.assertDictEqual(task_commands[0], task.generate_fuzzer_tasks_command)
+
     def test_resmoke_args_gen(self):
         task_commands = [{
             "func": "generate resmoke tasks", "vars": {"resmoke_args": "--shellWriteMode=commands"}
