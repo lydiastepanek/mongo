@@ -102,6 +102,11 @@ class TestSelectedTestsConfigOptions(unittest.TestCase):
 
         self.assertEqual(config_options.run_tests_build_id, "my_build_id")
 
+    def test_create_misc_suite(self):
+        config_options = under_test.SelectedTestsConfigOptions({}, {}, {}, {})
+
+        self.assertFalse(config_options.create_misc_suite)
+
     @patch(ns("read_config"))
     def test_generate_display_task(self, read_config_mock):
         config_options = under_test.SelectedTestsConfigOptions(
