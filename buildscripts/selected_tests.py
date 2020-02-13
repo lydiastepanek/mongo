@@ -392,7 +392,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
         selected_tests_variant_expansions: Dict[str, str], repos: List[Repo],
         origin_build_variants: List[str]) -> Dict[str, dict]:
     """
-    Run code to select tasks to run based on test and task mappings for each of the build variants.
+    Run code to select tasks to run based on test mappings and task mappings.
 
     :param evg_api: Evergreen API object.
     :param evg_conf: Evergreen configuration.
