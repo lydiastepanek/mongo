@@ -1,4 +1,5 @@
 # -*- mode: python; -*-
+# hi
 
 # This SConscript describes build rules for the "mongo" project.
 
