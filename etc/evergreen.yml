@@ -1531,7 +1531,7 @@ functions:
           else
 
             ${activate_virtualenv}
-            PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant enterprise-ubuntu-dynamic-1604-clang --selected-tests-config .selected_tests.yml
+            PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant ubuntu1804-debug-aubsan-lite --selected-tests-config .selected_tests.yml
 
           fi
     - command: archive.targz_pack
