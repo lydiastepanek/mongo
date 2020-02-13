@@ -170,10 +170,31 @@ def _find_selected_test_files(selected_tests_service: SelectedTestsService,
     }
 
 
+def filter_excluded_tasks(build_variant_config: Variant, task_names: Set[str]) -> Set[str]:
+    """
+    Filter out tasks that don't exist or should be excluded.
+
+    :param build_variant_config: Config of build variant to collect task info from.
+    :param task_names: Task names to filter.
+    :return: Set of tasks returned by selected-tests service that should not be excluded.
+    """
+    existing_task_names = set()
+    for task_name in task_names:
+        task = _find_task(build_variant_config, task_name)
+        if task:
+            if task.name in EXCLUDE_TASK_LIST or any(
+                    regex.match(task.name) for regex in EXCLUDE_TASK_PATTERNS):
+                LOGGER.debug("Excluding task from analysis because it is not a jstest",
+                             task=task_name)
+                continue
+            existing_task_names.add(task.name)
+    return existing_task_names
+
+
 def _find_selected_tasks(selected_tests_service: SelectedTestsService, changed_files: Set[str],
                          build_variant_config: Variant) -> Set[str]:
     """
-    Request tasks from selected-tests and filter out tasks that don't exist or should be excluded.
+    Request tasks from selected-tests and filter.
 
     :param selected_tests_service: Selected-tests service.
     :param changed_files: Set of changed_files.
@@ -185,17 +206,7 @@ def _find_selected_tasks(selected_tests_service: SelectedTestsService, changed_f
         task["name"]
         for task_mapping in task_mappings for task in task_mapping["tasks"]
     }
-    existing_task_names = set()
-    for task_name in returned_task_names:
-        task = _find_task(build_variant_config, task_name)
-        if task:
-            if task.name in EXCLUDE_TASK_LIST or any(
-                    regex.match(task.name) for regex in EXCLUDE_TASK_PATTERNS):
-                LOGGER.debug("Excluding task from analysis because it is not a jstest",
-                             task=task_name)
-                continue
-            existing_task_names.add(task.name)
-    return existing_task_names
+    return filter_excluded_tasks(build_variant_config, returned_task_names)
 
 
 def _find_task(build_variant_config: Variant, task_name: str) -> Task:
