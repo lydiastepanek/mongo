@@ -1531,7 +1531,7 @@ functions:
           else
 
             ${activate_virtualenv}
-            PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant=enterprise-rhel-62-64-bit --selected-tests-config .selected_tests.yml
+            PATH=$PATH:$HOME $python buildscripts/selected_tests.py --expansion-file expansions.yml --verbose --build-variant enterprise-windows-required --selected-tests-config .selected_tests.yml
 
           fi
     - command: archive.targz_pack
