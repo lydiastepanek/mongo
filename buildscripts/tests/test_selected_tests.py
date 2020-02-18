@@ -1,6 +1,7 @@
 """Unit tests for the selected_tests script."""
 import os
 import unittest
+import pdb
 
 from mock import MagicMock, patch
 from shrub.config import Configuration
@@ -400,60 +401,88 @@ class TestGetTaskConfigsForTaskMappings(unittest.TestCase):
         self.assertEqual(task_configs["task_2"]["task_config_key"], "task_config_value_2")
 
 
-class TestRun(unittest.TestCase):
-    @patch(ns("SelectedTestsConfigOptions"))
+class TestGetTaskConfigs(unittest.TestCase):
     @patch(ns("_find_selected_test_files"))
     @patch(ns("create_task_list_for_tests"))
     @patch(ns("_get_task_configs_for_test_mappings"))
     @patch(ns("_find_selected_tasks"))
-    @patch(ns("_update_config_with_task"))
-    # pylint: disable=too-many-arguments
-    def test_run_with_related_tests_but_no_related_tasks(
-            self, update_config_with_task_mock, find_selected_tasks_mock,
-            get_task_configs_for_test_mappings_mock, create_task_list_for_tests_mock,
-            find_selected_test_files_mock, selected_tests_config_options):
+    def test_with_related_tests_but_no_related_tasks(
+            self, find_selected_tasks_mock, get_task_configs_for_test_mappings_mock,
+            create_task_list_for_tests_mock, find_selected_test_files_mock):
         find_selected_test_files_mock.return_value = {"jstests/file-1.js", "jstests/file-3.js"}
         get_task_configs_for_test_mappings_mock.return_value = {
             "task_config_key": "task_config_value_1"
         }
         find_selected_tasks_mock.return_value = set()
-
-        def update_config_with_task(evg_api, shrub_config, config_options,
-                                    config_dict_of_suites_and_tasks):
-            config_dict_of_suites_and_tasks["new_config_key"] = "new_config_values"
-
-        update_config_with_task_mock.side_effect = update_config_with_task
-
         changed_files = {"src/file1.cpp", "src/file2.js"}
-        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                         changed_files, "variant")
 
-        self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
+        task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
+                                                    changed_files)
 
-    @patch(ns("SelectedTestsConfigOptions"))
+        self.assertEqual(task_configs["task_config_key"], "task_config_value_1")
+
     @patch(ns("_find_selected_test_files"))
+    @patch(ns("create_task_list_for_tests"))
     @patch(ns("_get_task_configs_for_task_mappings"))
     @patch(ns("_find_selected_tasks"))
-    @patch(ns("_update_config_with_task"))
-    # pylint: disable=too-many-arguments
-    def test_run_with_related_tasks_but_no_related_tests(
-            self, update_config_with_task_mock, find_selected_tasks_mock,
-            get_task_configs_for_task_mappings_mock, find_selected_test_files_mock,
-            selected_tests_config_options):
+    def test_with_no_related_tests_but_related_tasks(
+            self, find_selected_tasks_mock, get_task_configs_for_task_mappings_mock,
+            create_task_list_for_tests_mock, find_selected_test_files_mock):
         find_selected_test_files_mock.return_value = {}
+        find_selected_tasks_mock.return_value = {"jsCore_auth", "auth_gen"}
         get_task_configs_for_task_mappings_mock.return_value = {
+            "task_config_key": "task_config_value_2"
+        }
+        changed_files = {"src/file1.cpp", "src/file2.js"}
+
+        task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
+                                                    changed_files)
+
+        self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
+
+    @patch(ns("_find_selected_test_files"))
+    @patch(ns("create_task_list_for_tests"))
+    @patch(ns("_get_task_configs_for_test_mappings"))
+    @patch(ns("_get_task_configs_for_task_mappings"))
+    @patch(ns("_find_selected_tasks"))
+    def test_task_mapping_configs_will_overwrite_test_mapping_configs(
+            self, find_selected_tasks_mock, get_task_configs_for_task_mappings_mock,
+            get_task_configs_for_test_mappings_mock, create_task_list_for_tests_mock,
+            find_selected_test_files_mock):
+        find_selected_test_files_mock.return_value = {"jstests/file-1.js", "jstests/file-3.js"}
+        get_task_configs_for_test_mappings_mock.return_value = {
             "task_config_key": "task_config_value_1"
         }
         find_selected_tasks_mock.return_value = {"jsCore_auth", "auth_gen"}
+        get_task_configs_for_task_mappings_mock.return_value = {
+            "task_config_key": "task_config_value_2"
+        }
+        changed_files = {"src/file1.cpp", "src/file2.js"}
+
+        task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
+                                                    changed_files)
+
+        self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
+
+
+class TestRun(unittest.TestCase):
+    @patch(ns("SelectedTestsConfigOptions"))
+    @patch(ns("_get_task_configs"))
+    @patch(ns("_update_config_with_task"))
+    def test_run(self, update_config_with_task_mock, get_task_configs_mock,
+                 selected_tests_config_options):
+        get_task_configs_mock.return_value = {"task_config_key": "task_config_value_1"}
 
         def update_config_with_task(evg_api, shrub_config, config_options,
                                     config_dict_of_suites_and_tasks):
             config_dict_of_suites_and_tasks["new_config_key"] = "new_config_values"
+            shrub_config.task("my_fake_task")
 
         update_config_with_task_mock.side_effect = update_config_with_task
-
         changed_files = {"src/file1.cpp", "src/file2.js"}
-        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                         changed_files, "variant")
+
+        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), MagicMock(), {},
+                                                         changed_files, ["variant"])
 
         self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
+        self.assertIn("my_fake_task", config_dict_of_suites_and_tasks["selected_tests_config.json"])
