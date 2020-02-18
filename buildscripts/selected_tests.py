@@ -89,23 +89,22 @@ class SelectedTestsConfigOptions(ConfigOptions):
 
     @classmethod
     # pylint: disable=too-many-arguments,W0221
-    def from_file(cls, origin_variant_expansions: Dict[str, str], filepath: str,
-                  overwrites: Dict[str, Any], required_keys: Set[str], defaults: Dict[str, Any],
-                  formats: Dict[str, type]):
+    def from_file(cls, origin_variant_expansions: Dict[str, str],
+                  selected_tests_variant_expansions: Dict[str, str], overwrites: Dict[str, Any],
+                  required_keys: Set[str], defaults: Dict[str, Any], formats: Dict[str, type]):
         """
         Create an instance of SelectedTestsConfigOptions based on the given config file.
 
         :param origin_variant_expansions: Expansions of the origin build variant.
-        :param filepath: Path to file containing configuration.
+        :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
         :param overwrites: Dict of configuration values to overwrite those listed in filepath.
         :param required_keys: Set of keys required by this config.
         :param defaults: Dict of default values for keys.
         :param formats: Dict with functions to format values before returning.
         :return: Instance of SelectedTestsConfigOptions.
         """
-        config_from_file = read_config.read_config_file(filepath)
-        return cls({**origin_variant_expansions, **config_from_file, **overwrites}, required_keys,
-                   defaults, formats)
+        return cls({**origin_variant_expansions, **selected_tests_variant_expansions, **overwrites},
+                   required_keys, defaults, formats)
 
     @property
     def run_tests_task(self):
@@ -214,30 +213,30 @@ def _find_task(build_variant_config: Variant, task_name: str) -> Task:
     return task
 
 
-def _get_selected_tests_task_config(expansion_file: str) -> Dict[str, str]:
+def _get_selected_tests_task_config(
+        selected_tests_variant_expansions: Dict[str, str]) -> Dict[str, str]:
     """
     Look up task config of the selected tests task.
 
-    :param expansion_file: Configuration file.
+    :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :return: Task configuration values.
     """
-    expansions = read_config.read_config_file(expansion_file)
     return {
-        "name_of_generating_task": expansions["task_name"],
-        "name_of_generating_build_variant": expansions["build_variant"],
-        "name_of_generating_build_id": expansions["build_id"]
+        "name_of_generating_task": selected_tests_variant_expansions["task_name"],
+        "name_of_generating_build_variant": selected_tests_variant_expansions["build_variant"],
+        "name_of_generating_build_id": selected_tests_variant_expansions["build_id"]
     }
 
 
 def _get_evg_task_config(
-        expansion_file: str,
+        selected_tests_variant_expansions: Dict[str, str],
         task_name: str,
         build_variant_config: Variant,
 ) -> Dict[str, Any]:
     """
     Look up task config of the task to be generated.
 
-    :param expansion_file: Configuration file.
+    :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :param task_name: Task to get info for.
     :param build_variant_config: Config of build variant to collect task info from.
     :return: Task configuration values.
@@ -258,7 +257,7 @@ def _get_evg_task_config(
     resmoke_args_without_suites = ResmokeArgs.remove_arg(task_vars["resmoke_args"], "suites")
     task_vars["resmoke_args"] = resmoke_args_without_suites
 
-    selected_tests_task_config = _get_selected_tests_task_config(expansion_file)
+    selected_tests_task_config = _get_selected_tests_task_config(selected_tests_variant_expansions)
 
     return {
         "task_name": task.name, "build_variant": build_variant_config.name, **task_vars,
@@ -286,19 +285,21 @@ def _update_config_with_task(evg_api: EvergreenApi, shrub_config: Configuration,
     task_generator.generate_task_config(shrub_config, suites)
 
 
-def _get_task_configs_for_test_mappings(expansion_file: str, tests_by_task: Dict[str, Any],
+def _get_task_configs_for_test_mappings(selected_tests_variant_expansions: Dict[str, str],
+                                        tests_by_task: Dict[str, Any],
                                         build_variant_config: Variant) -> Dict[str, dict]:
     """
     For test mappings, generate a dict containing task names and their config settings.
 
-    :param expansion_file: Configuration file.
+    :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :param tests_by_task: Dictionary of tests and tasks to run.
     :param build_variant_config: Config of build variant to collect task info from.
     :return: Dict of task names and their config settings.
     """
     evg_task_configs = {}
     for task_name, test_list_info in tests_by_task.items():
-        evg_task_config = _get_evg_task_config(expansion_file, task_name, build_variant_config)
+        evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
+                                               build_variant_config)
         evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
         LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
         evg_task_configs[task_name] = evg_task_config
@@ -306,19 +307,21 @@ def _get_task_configs_for_test_mappings(expansion_file: str, tests_by_task: Dict
     return evg_task_configs
 
 
-def _get_task_configs_for_task_mappings(expansion_file: str, related_tasks: List[str],
+def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[str, str],
+                                        related_tasks: List[str],
                                         build_variant_config: Variant) -> Dict[str, dict]:
     """
     For task mappings, generate a dict containing task names and their config settings.
 
-    :param expansion_file: Configuration file.
+    :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :param related_tasks: List of tasks to run.
     :param build_variant_config: Config of build variant to collect task info from.
     :return: Dict of task names and their config settings.
     """
     evg_task_configs = {}
     for task_name in related_tasks:
-        evg_task_config = _get_evg_task_config(expansion_file, task_name, build_variant_config)
+        evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
+                                               build_variant_config)
         LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
         evg_task_configs[task_name] = evg_task_config
 
@@ -326,7 +329,8 @@ def _get_task_configs_for_task_mappings(expansion_file: str, related_tasks: List
 
 
 # pylint: disable=too-many-arguments, too-many-locals
-def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file: str,
+def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
+        selected_tests_variant_expansions: Dict[str, str],
         selected_tests_service: SelectedTestsService, changed_files: Set[str],
         build_variant: str) -> Dict[str, dict]:
     """
@@ -334,8 +338,8 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file:
 
     :param evg_api: Evergreen API object.
     :param evg_conf: Evergreen configuration.
-    :param expansion_file: Configuration file.
-    :param selected_tests_config: Location of config file to connect to elected-tests service.
+    :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
+    :param selected_tests_config: Location of config file to connect to selected-tests service.
     :param changed_files: Set of changed_files.
     :param build_variant: Build variant to collect task info from.
     :return: Dict of files and file contents for generated tasks.
@@ -353,7 +357,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file:
         LOGGER.debug("tests and tasks found", tests_by_task=tests_by_task)
 
         test_mapping_task_configs = _get_task_configs_for_test_mappings(
-            expansion_file, tests_by_task, build_variant_config)
+            selected_tests_variant_expansions, tests_by_task, build_variant_config)
         task_configs.update(test_mapping_task_configs)
 
     related_tasks = _find_selected_tasks(selected_tests_service, changed_files,
@@ -361,7 +365,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file:
     LOGGER.debug("related tasks found", related_tasks=related_tasks)
     if related_tasks:
         task_mapping_task_configs = _get_task_configs_for_task_mappings(
-            expansion_file, related_tasks, build_variant_config)
+            selected_tests_variant_expansions, related_tasks, build_variant_config)
         # task_mapping_task_configs will overwrite test_mapping_task_configs
         # because task_mapping_task_configs will run all tests rather than a subset of tests and we
         # should err on the side of running all tests
@@ -372,7 +376,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig, expansion_file:
     for task_config in task_configs.values():
         config_options = SelectedTestsConfigOptions.from_file(
             origin_variant_expansions,
-            expansion_file,
+            selected_tests_variant_expansions,
             task_config,
             REQUIRED_CONFIG_KEYS,
             DEFAULT_CONFIG_VALUES,
@@ -435,14 +439,15 @@ def main(
     evg_api = RetryingEvergreenApi.get_api(config_file=evg_api_config)
     evg_conf = parse_evergreen_file(EVERGREEN_FILE)
     selected_tests_service = SelectedTestsService.from_file(selected_tests_config)
+    selected_tests_variant_expansions = read_config.read_config_file(expansion_file)
 
     repo = Repo(".")
     changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
     LOGGER.debug("Found changed files", files=changed_files)
 
-    config_dict_of_suites_and_tasks = run(evg_api, evg_conf, expansion_file, selected_tests_service,
-                                          changed_files, build_variant)
+    config_dict_of_suites_and_tasks = run(evg_api, evg_conf, selected_tests_variant_expansions,
+                                          selected_tests_service, changed_files, build_variant)
     write_file_dict(SELECTED_TESTS_CONFIG_DIR, config_dict_of_suites_and_tasks)
 
 

@@ -38,51 +38,47 @@ def tests_by_task_stub():
 
 
 class TestSelectedTestsConfigOptions(unittest.TestCase):
-    @patch(ns("read_config"))
-    def test_overwrites_overwrite_filepath_config(self, read_config_mock):
-        filepath = MagicMock()
+    def test_overwrites_overwrite_filepath_config(self):
         origin_variant_expansions = {"key1": 0}
-        read_config_mock.read_config_file.return_value = {"key1": 1}
+        selected_tests_variant_expansions = {"key1": 1}
         overwrites = {"key1": 2}
         required_keys = {"key1"}
         defaults = {}
         formats = {"key1": int}
 
         config_options = under_test.SelectedTestsConfigOptions.from_file(
-            origin_variant_expansions, filepath, overwrites, required_keys, defaults, formats)
+            origin_variant_expansions, selected_tests_variant_expansions, overwrites, required_keys,
+            defaults, formats)
 
         self.assertEqual(overwrites["key1"], config_options.key1)
 
-    @patch(ns("read_config"))
-    def test_overwrites_overwrite_defaults(self, read_config_mock):
-        filepath = MagicMock()
+    def test_overwrites_overwrite_defaults(self):
         origin_variant_expansions = {}
-        read_config_mock.read_config_file.return_value = {"key1": 1}
+        selected_tests_variant_expansions = {"key1": 1}
         overwrites = {"key1": 2}
         required_keys = {"key1"}
         defaults = {"key1": 3}
         formats = {"key1": int}
 
         config_options = under_test.SelectedTestsConfigOptions.from_file(
-            origin_variant_expansions, filepath, overwrites, required_keys, defaults, formats)
+            origin_variant_expansions, selected_tests_variant_expansions, overwrites, required_keys,
+            defaults, formats)
 
         self.assertEqual(overwrites["key1"], config_options.key1)
 
-    @patch(ns("read_config"))
-    def test_filepath_config_overrides_origin_expansions(self, read_config_mock):
-        filepath = MagicMock()
+    def test_selected_tests_config_overrides_origin_expansions(self):
         origin_variant_expansions = {"key1": 0}
-        filepath_config = {"key1": 1}
-        read_config_mock.read_config_file.return_value = filepath_config
+        selected_tests_variant_expansions = {"key1": 1}
         overwrites = {}
         required_keys = {"key1"}
         defaults = {}
         formats = {"key1": int}
 
         config_options = under_test.SelectedTestsConfigOptions.from_file(
-            origin_variant_expansions, filepath, overwrites, required_keys, defaults, formats)
+            origin_variant_expansions, selected_tests_variant_expansions, overwrites, required_keys,
+            defaults, formats)
 
-        self.assertEqual(filepath_config["key1"], config_options.key1)
+        self.assertEqual(selected_tests_variant_expansions["key1"], config_options.key1)
 
     def test_run_tests_task(self):
         config_options = under_test.SelectedTestsConfigOptions(
@@ -259,13 +255,13 @@ class TestFindSelectedTasks(unittest.TestCase):
 
 
 class TestGetSelectedTestsTaskConfiguration(unittest.TestCase):
-    @patch(ns("read_config"))
-    def test_gets_values(self, read_config_mock):
-        read_config_mock.read_config_file.return_value = {
+    def test_gets_values(self):
+        selected_tests_variant_expansions = {
             "task_name": "my_task", "build_variant": "my-build-variant", "build_id": "my_build_id"
         }
 
-        selected_tests_task_config = under_test._get_selected_tests_task_config(MagicMock())
+        selected_tests_task_config = under_test._get_selected_tests_task_config(
+            selected_tests_variant_expansions)
 
         self.assertEqual(selected_tests_task_config["name_of_generating_task"], "my_task")
         self.assertEqual(selected_tests_task_config["name_of_generating_build_variant"],
@@ -292,8 +288,7 @@ class TestGetEvgTaskConfig(unittest.TestCase):
             }],
         })
 
-        evg_task_config = under_test._get_evg_task_config(MagicMock(), task_name,
-                                                          build_variant_conf)
+        evg_task_config = under_test._get_evg_task_config({}, task_name, build_variant_conf)
 
         self.assertEqual(evg_task_config["task_name"], task_name)
         self.assertEqual(evg_task_config["build_variant"], "variant")
@@ -319,8 +314,7 @@ class TestGetEvgTaskConfig(unittest.TestCase):
             }],
         })
 
-        evg_task_config = under_test._get_evg_task_config(MagicMock(), task_name,
-                                                          build_variant_conf)
+        evg_task_config = under_test._get_evg_task_config({}, task_name, build_variant_conf)
 
         self.assertEqual(evg_task_config["task_name"], task_name)
         self.assertEqual(evg_task_config["build_variant"], "variant")
@@ -382,9 +376,8 @@ class TestGetTaskConfigsForTestMappings(unittest.TestCase):
         get_evg_task_config_mock.side_effect = [{"task_config_key": "task_config_value_1"},
                                                 {"task_config_key": "task_config_value_2"}]
 
-        task_configs = under_test._get_task_configs_for_test_mappings(
-            expansion_file=MagicMock(), tests_by_task=tests_by_task,
-            build_variant_config=MagicMock())
+        task_configs = under_test._get_task_configs_for_test_mappings({}, tests_by_task,
+                                                                      MagicMock())
 
         self.assertEqual(task_configs["jsCore_auth"]["task_config_key"], "task_config_value_1")
         self.assertEqual(
@@ -401,8 +394,7 @@ class TestGetTaskConfigsForTaskMappings(unittest.TestCase):
         tasks = ["task_1", "task_2"]
         get_evg_task_config_mock.side_effect = [{"task_config_key": "task_config_value_1"},
                                                 {"task_config_key": "task_config_value_2"}]
-        task_configs = under_test._get_task_configs_for_task_mappings(
-            expansion_file=MagicMock(), related_tasks=tasks, build_variant_config=MagicMock())
+        task_configs = under_test._get_task_configs_for_task_mappings({}, tasks, MagicMock())
 
         self.assertEqual(task_configs["task_1"]["task_config_key"], "task_config_value_1")
         self.assertEqual(task_configs["task_2"]["task_config_key"], "task_config_value_2")
@@ -433,8 +425,8 @@ class TestRun(unittest.TestCase):
         update_config_with_task_mock.side_effect = update_config_with_task
 
         changed_files = {"src/file1.cpp", "src/file2.js"}
-        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), MagicMock(),
-                                                         MagicMock(), changed_files, "variant")
+        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), {}, MagicMock(),
+                                                         changed_files, "variant")
 
         self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
 
@@ -461,7 +453,7 @@ class TestRun(unittest.TestCase):
         update_config_with_task_mock.side_effect = update_config_with_task
 
         changed_files = {"src/file1.cpp", "src/file2.js"}
-        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), MagicMock(),
-                                                         MagicMock(), changed_files, "variant")
+        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), {}, MagicMock(),
+                                                         changed_files, "variant")
 
         self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
