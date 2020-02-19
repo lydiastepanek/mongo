@@ -464,8 +464,8 @@ def main(
     origin_build_variants = selected_tests_variant_expansions["selected_tests_buildvariants"].split(
         " ")
 
-    config_dict_of_suites_and_tasks = run(evg_api, evg_conf, selected_tests_variant_expansions,
-                                          selected_tests_service, changed_files,
+    config_dict_of_suites_and_tasks = run(evg_api, evg_conf, selected_tests_service,
+                                          selected_tests_variant_expansions, changed_files,
                                           origin_build_variants)
     write_file_dict(SELECTED_TESTS_CONFIG_DIR, config_dict_of_suites_and_tasks)
 
