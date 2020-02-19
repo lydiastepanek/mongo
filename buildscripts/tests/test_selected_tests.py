@@ -1,7 +1,6 @@
 """Unit tests for the selected_tests script."""
 import os
 import unittest
-import pdb
 
 from mock import MagicMock, patch
 from shrub.config import Configuration
@@ -445,6 +444,7 @@ class TestGetTaskConfigs(unittest.TestCase):
     @patch(ns("_get_task_configs_for_test_mappings"))
     @patch(ns("_get_task_configs_for_task_mappings"))
     @patch(ns("_find_selected_tasks"))
+    # pylint: disable=too-many-arguments
     def test_task_mapping_configs_will_overwrite_test_mapping_configs(
             self, find_selected_tasks_mock, get_task_configs_for_task_mappings_mock,
             get_task_configs_for_test_mappings_mock, create_task_list_for_tests_mock,
