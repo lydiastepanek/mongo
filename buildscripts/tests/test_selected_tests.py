@@ -1,6 +1,7 @@
 """Unit tests for the selected_tests script."""
 import os
 import unittest
+import pdb
 
 from mock import MagicMock, patch
 from shrub.config import Configuration
@@ -471,18 +472,20 @@ class TestRun(unittest.TestCase):
     @patch(ns("_update_config_with_task"))
     def test_run(self, update_config_with_task_mock, get_task_configs_mock,
                  selected_tests_config_options):
-        get_task_configs_mock.return_value = {"task_config_key": "task_config_value_1"}
+        get_task_configs_mock.side_effect = [{"task_name": "task_on_variant_1"},
+                                             {"task_name": "task_on_variant_2"}]
 
         def update_config_with_task(evg_api, shrub_config, config_options,
                                     config_dict_of_suites_and_tasks):
             config_dict_of_suites_and_tasks["new_config_key"] = "new_config_values"
-            shrub_config.task("my_fake_task")
+            shrub_config.task(config_options.task_name)
 
         update_config_with_task_mock.side_effect = update_config_with_task
         changed_files = {"src/file1.cpp", "src/file2.js"}
 
         config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), MagicMock(), {},
-                                                         changed_files, ["variant"])
+                                                         changed_files, ["variant_1", "variant_2"])
 
+        pdb.set_trace()
         self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
         self.assertIn("my_fake_task", config_dict_of_suites_and_tasks["selected_tests_config.json"])
