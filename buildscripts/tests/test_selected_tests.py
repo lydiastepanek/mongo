@@ -482,7 +482,7 @@ class TestRun(unittest.TestCase):
         changed_files = {"src/file1.cpp", "src/file2.js"}
 
         config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), MagicMock(), {},
-                                                         changed_files, ["variant"])
+                                                         changed_files, ["variant_1", "variant_2"])
 
         self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
         self.assertIn("my_fake_task", config_dict_of_suites_and_tasks["selected_tests_config.json"])
