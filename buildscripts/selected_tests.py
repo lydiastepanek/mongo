@@ -361,6 +361,7 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     if related_tasks:
         task_mapping_task_configs = _get_task_configs_for_task_mappings(
             selected_tests_variant_expansions, related_tasks, build_variant_config)
+
         # task_mapping_task_configs will overwrite test_mapping_task_configs
         # because task_mapping_task_configs will run all tests rather than a subset of tests and we
         # should err on the side of running all tests
@@ -461,8 +462,7 @@ def main(
     LOGGER.debug("Found changed files", files=changed_files)
 
     selected_tests_variant_expansions = read_config.read_config_file(expansion_file)
-    origin_build_variants = selected_tests_variant_expansions["selected_tests_buildvariants"].split(
-        " ")
+    origin_build_variants = selected_tests_variant_expansions["selected_tests_buildvariants"]
 
     config_dict_of_suites_and_tasks = run(evg_api, evg_conf, selected_tests_service,
                                           selected_tests_variant_expansions, changed_files,
