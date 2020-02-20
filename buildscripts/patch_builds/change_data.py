@@ -47,7 +47,7 @@ def _modified_files_for_diff(diff: DiffIndex, log: Any) -> Set:
     return modified_files.union(added_files).union(renamed_files).union(deleted_files)
 
 
-def find_changed_files(repo: Repo) -> Set[str]:
+def find_changed_files(diff, repo: Repo) -> Set[str]:
     """
     Find files that were new or added to the repository between commits.
 
@@ -55,7 +55,6 @@ def find_changed_files(repo: Repo) -> Set[str]:
 
     :return: Set of changed files.
     """
-    diff = repo.index.diff(None)
     work_tree_files = _modified_files_for_diff(diff, LOGGER.bind(diff="working tree diff"))
 
     commit = repo.index

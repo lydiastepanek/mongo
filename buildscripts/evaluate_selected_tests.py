@@ -20,7 +20,7 @@ if __name__ == "__main__" and __package__ is None:
 # pylint: disable=wrong-import-position
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
-from buildscripts.burn_in_tests import create_task_list_for_tests
+from buildscripts.burn_in_tests import DEFAULT_REPO_LOCATIONS, create_task_list_for_tests
 from buildscripts.selected_tests import _find_selected_test_files, _find_selected_tasks, filter_excluded_tasks
 from buildscripts.ciconfig.evergreen import (
     parse_evergreen_file, )
@@ -89,20 +89,31 @@ def main(
     evg_conf = parse_evergreen_file(EVERGREEN_FILE)
     selected_tests_service = SelectedTestsService.from_file(selected_tests_config)
 
-    repo = Repo(".")
-    changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
-    LOGGER.debug("Found changed files", files=changed_files)
 
     origin_build_variants = evg_conf.get_variant(
         "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
     tasks_that_would_have_run = defaultdict(set)
     failed_tasks = {}
     version_id = "mongodb_mongo_master_b6ef7212c4f1c263e9d997b606c9127601e023e3"
+    version = evg_api.version_by_id(version_id)
+
+    mongo_repo = Repo(".")
+    enterprise_repo = Repo("./src/mongo/db/modules/enterprise")
+    changed_files = set()
+    mongo_commit = mongo_repo.commit(version.revision)
+    enterprise_commit = enterprise_repo.commit(
+        version.get_manifest().modules["enterprise"].revision)
+    for commit, repo in {mongo_commit: mongo_repo, enterprise_commit: enterprise_repo}.items():
+        parent = commit.parents[0]
+        diff = commit.diff(parent)
+        repo_changed_files = find_changed_files(diff, repo)
+        changed_files.update(repo_changed_files)
+    pdb.set_trace()
+    LOGGER.debug("Found changed files", files=changed_files)
 
     for build_variant in origin_build_variants:
 
-        version = evg_api.version_by_id(version_id)
         evg_build = version.build_by_variant(build_variant)
         build_variant_config = evg_conf.get_variant(build_variant)
 
