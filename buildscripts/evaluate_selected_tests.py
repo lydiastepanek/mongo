@@ -95,6 +95,12 @@ def main(
         "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
     tasks_that_would_have_run = defaultdict(set)
     failed_tasks = {}
+    final_results = defaultdict(dict)
+
+    #  final_results={'mongodb_mongo_master_b6ef7212c4f1c263e9d997b606c9127601e023e3': 0.4}
+    # no failed tasks besides push
+    #  version = evg_api.version_by_id("mongodb_mongo_master_149aae77fd00cbb0d5760881e76eae631e1f0e11")
+    #  it caught 100% of tasks on this one
     version_id = "mongodb_mongo_master_b6ef7212c4f1c263e9d997b606c9127601e023e3"
     version = evg_api.version_by_id(version_id)
 
@@ -104,12 +110,13 @@ def main(
     mongo_commit = mongo_repo.commit(version.revision)
     enterprise_commit = enterprise_repo.commit(
         version.get_manifest().modules["enterprise"].revision)
+
     for commit, repo in {mongo_commit: mongo_repo, enterprise_commit: enterprise_repo}.items():
         parent = commit.parents[0]
         diff = commit.diff(parent)
         repo_changed_files = find_changed_files(diff, repo)
         changed_files.update(repo_changed_files)
-    pdb.set_trace()
+
     LOGGER.debug("Found changed files", files=changed_files)
 
     for build_variant in origin_build_variants:
@@ -137,21 +144,15 @@ def main(
         if related_tasks:
             tasks_that_would_have_run[build_variant].update(related_tasks)
 
-    # no failed tasks besides push
-    #  version = evg_api.version_by_id("mongodb_mongo_master_149aae77fd00cbb0d5760881e76eae631e1f0e11")
-    #  it caught 100% of tasks on this one
-    final_results = {}
-    if failed_tasks:
-        LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
-        LOGGER.info("Tasks that would have run:",
-                    tasks_that_would_have_run=tasks_that_would_have_run)
-        correctly_captured_tasks = failed_tasks["enterprise-rhel-62-64-bit"].intersection(
-            tasks_that_would_have_run["enterprise-rhel-62-64-bit"])
-        percentage_captured_tasks = len(correctly_captured_tasks) / len(failed_tasks)
-        LOGGER.info("Percentage of tasks captured by selected_tests_gen",
-                    percentage_captured_tasks=percentage_captured_tasks)
-        final_results[version_id] = percentage_captured_tasks
+        if failed_tasks[build_variant]:
+            correctly_captured_tasks = failed_tasks[build_variant].intersection(
+                tasks_that_would_have_run[build_variant])
+            percentage_captured_tasks = len(correctly_captured_tasks) / len(
+                failed_tasks[build_variant])
+            final_results[version_id][build_variant] = percentage_captured_tasks
 
+    LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
+    LOGGER.info("Tasks that would have run:", tasks_that_would_have_run=tasks_that_would_have_run)
     LOGGER.info("Final results:", final_results=final_results)
 
 
