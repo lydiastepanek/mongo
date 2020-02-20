@@ -141,8 +141,13 @@ def main(
     }
     failed_tasks = filter_excluded_tasks(build_variant_config, failed_tasks)
     if failed_tasks:
+        LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
+        LOGGER.info("Tasks that would have run:",
+                    tasks_that_would_have_run=tasks_that_would_have_run)
         correctly_captured_tasks = failed_tasks.intersection(tasks_that_would_have_run)
         percentage_captured_tasks = len(correctly_captured_tasks) / len(failed_tasks)
+        LOGGER.info("Percentage of tasks captured by selected_tests_gen",
+                    percentage_captured_tasks=percentage_captured_tasks)
 
 
 if __name__ == "__main__":
