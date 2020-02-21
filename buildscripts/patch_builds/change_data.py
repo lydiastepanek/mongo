@@ -62,7 +62,7 @@ def find_changed_files(diff, repo: Repo) -> Set[str]:
     index_files = _modified_files_for_diff(diff, LOGGER.bind(diff="index diff"))
 
     untracked_files = set(repo.untracked_files)
-    LOGGER.info("untracked files", files=untracked_files, diff="untracked diff")
+    LOGGER.debug("untracked files", files=untracked_files, diff="untracked diff")
 
     paths = work_tree_files.union(index_files).union(untracked_files)
 
