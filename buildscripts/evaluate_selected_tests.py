@@ -63,20 +63,6 @@ def _configure_logging(verbose: bool):
 @click.option("--project", "project", default=DEFAULT_PROJECT, metavar='PROJECT',
               help="The evergreen project the tasks will execute on.")
 @click.option(
-    "--after-date",
-    type=str,
-    help="The date to begin analyzing versions at - has to be an iso date."
-    "Example: 2019-10-11T19:10:38",
-    required=True,
-)
-@click.option(
-    "--before-date",
-    type=str,
-    help="The date to stop analyzing versions at - has to be an iso date."
-    "Example: 2019-10-11T19:10:38",
-    required=True,
-)
-@click.option(
     "--evg-api-config",
     "evg_api_config",
     default=EVG_CONFIG_FILE,
@@ -93,8 +79,6 @@ def _configure_logging(verbose: bool):
 def main(
         verbose: bool,
         project: str,
-        after_date: str,
-        before_date: str,
         evg_api_config: str,
         selected_tests_config: str,
 ):
@@ -103,8 +87,6 @@ def main(
 
     :param verbose: Log extra debug information.
     :param project: Project to run tests on.
-    :param after_date: The date to begin analyzing versions at.
-    :param before_date: The date to stop analyzing versions at.
     :param evg_api_config: Location of configuration file to connect to evergreen.
     :param selected_tests_config: Location of config file to connect to elected-tests service.
     """
@@ -113,8 +95,6 @@ def main(
     evg_api = RetryingEvergreenApi.get_api(config_file=evg_api_config)
     evg_conf = parse_evergreen_file(EVERGREEN_FILE)
     selected_tests_service = SelectedTestsService.from_file(selected_tests_config)
-    after_date = datetime.fromisoformat(after_date).replace(tzinfo=pytz.UTC)
-    before_date = datetime.fromisoformat(before_date).replace(tzinfo=pytz.UTC)
 
     mongo_repo = Repo(".")
     enterprise_repo = Repo("./src/mongo/db/modules/enterprise")
@@ -124,24 +104,33 @@ def main(
     origin_build_variants = evg_conf.get_variant(
         "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
 
-    tasks_that_would_have_run = defaultdict(set)
-    failed_tasks = {}
     final_results = defaultdict(dict)
 
-    #  final_results={'mongodb_mongo_master_b6ef7212c4f1c263e9d997b606c9127601e023e3': 0.4}
-    # no failed tasks besides push
-    #  version = evg_api.version_by_id("mongodb_mongo_master_149aae77fd00cbb0d5760881e76eae631e1f0e11")
     #  it caught 100% of tasks on this one
     #  version_id = "mongodb_mongo_master_b6ef7212c4f1c263e9d997b606c9127601e023e3"
-    #  version = evg_api.version_by_id(version_id)
-    project_versions = evg_api.versions_by_project(project)
-    for version in project_versions:
-        if version.create_time < after_date:
-            break
-        if version.create_time > before_date:
-            continue
+    version_ids = [
+        #  "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
+        #  "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
+        #  "mongodb_mongo_master_63253ac8554b2a867de988fed5077ecfbc4522e0",
+        #  "mongodb_mongo_master_ad642bcf1a2d59600e891c4666a80be4d5f6b4bf",
+        #  "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
+        #  "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
+        #  "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
+        #
+        #  "mongodb_mongo_master_5b50a111c9361554bc7dbe6a8c63c885a5c29df6",
+        "mongodb_mongo_master_61ea39197455ca2e54135607e5625bb2c2796ec3",
+        "mongodb_mongo_master_f83f9dcc22156cdf3c3e16a040914806e2e17cf7",
+        "mongodb_mongo_master_0aac1805c04aa5b1481ba99dcab2273d423df10c",
+        "mongodb_mongo_master_ed96ae9dedac361207c747299448f6b0631ff00f",
+        "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d"
+    ]
+    for version_id in version_ids:
+        version = evg_api.version_by_id(version_id)
         LOGGER.info("Analyzing version", version=version.version_id,
                     create_time=version.create_time)
+
+        tasks_that_would_have_run = defaultdict(set)
+        failed_tasks = {}
 
         changed_files = set()
         mongo_commit = mongo_repo.commit(version.revision)
@@ -189,9 +178,11 @@ def main(
                     failed_tasks[build_variant])
                 final_results[version.version_id][build_variant] = percentage_captured_tasks
 
+        LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
+        LOGGER.info("Tasks that would have run:",
+                    tasks_that_would_have_run=tasks_that_would_have_run)
+
     # failed tasks is not printing contents of set()
-    LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
-    LOGGER.info("Tasks that would have run:", tasks_that_would_have_run=tasks_that_would_have_run)
     LOGGER.info("Final results:", final_results=final_results)
 
 
