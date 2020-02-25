@@ -106,8 +106,6 @@ def main(
 
     final_results = defaultdict(dict)
 
-    #  it caught 100% of tasks on this one
-    #  version_id = "mongodb_mongo_master_b6ef7212c4f1c263e9d997b606c9127601e023e3"
     version_ids = [
         #  "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
         #  "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
@@ -116,13 +114,11 @@ def main(
         #  "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
         #  "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
         #  "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
-        #
         #  "mongodb_mongo_master_5b50a111c9361554bc7dbe6a8c63c885a5c29df6",
-        "mongodb_mongo_master_61ea39197455ca2e54135607e5625bb2c2796ec3",
+        #  "mongodb_mongo_master_61ea39197455ca2e54135607e5625bb2c2796ec3",
         "mongodb_mongo_master_f83f9dcc22156cdf3c3e16a040914806e2e17cf7",
         "mongodb_mongo_master_0aac1805c04aa5b1481ba99dcab2273d423df10c",
-        "mongodb_mongo_master_ed96ae9dedac361207c747299448f6b0631ff00f",
-        "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d"
+        #  "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d"
     ]
     for version_id in version_ids:
         version = evg_api.version_by_id(version_id)
