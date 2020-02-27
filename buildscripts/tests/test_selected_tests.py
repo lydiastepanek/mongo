@@ -41,6 +41,7 @@ def tests_by_task_stub():
 
 class TestSelectedTestsAcceptance(unittest.TestCase):
     """A suite of Acceptance tests for selected_tests."""
+
     @staticmethod
     def _mock_selected_tests_service():
         selected_tests_service = MagicMock()
@@ -52,20 +53,30 @@ class TestSelectedTestsAcceptance(unittest.TestCase):
         ]
         return selected_tests_service
 
-
     def test_when_test_mappings_are_found_for_changed_files(self):
         evg_api_mock = TestAcceptance._mock_evg_api()
         evg_config = get_evergreen_config("etc/evergreen.yml")
         selected_tests_service_mock = self._mock_selected_tests_service()
-        selected_tests_variant_expansions = {"task_name": "selected_tests_gen", "build_variant": "selected-tests", "build_id": "my_build_id"}
+        selected_tests_variant_expansions = {"task_name": "selected_tests_gen",
+                                             "build_variant": "selected-tests",
+                                             "build_id": "my_build_id",
+                                             "project": "mongodb-mongo-master"}
+        # return {
+        #     "build_variant": "build_variant",
+        #     "fallback_num_sub_suites": 14,
+        #     "project": "mongodb-mongo-master",
+        #     "task_id": "task314",
+        #     "task_name": "some_task_gen",
+        # }
         changed_files = ["src/file1.cpp"]
         origin_build_variants = ["enterprise-rhel-62-64-bit"]
 
-        config_dict_of_suites_and_tasks = under_test.run(evg_api_mock, evg_config, selected_tests_service_mock,
-                                              selected_tests_variant_expansions, changed_files,
-                                              origin_build_variants)
+        config_dict_of_suites_and_tasks = under_test.run(evg_api_mock, evg_config,
+                                                         selected_tests_service_mock,
+                                                         selected_tests_variant_expansions,
+                                                         changed_files,
+                                                         origin_build_variants)
         print(3)
-
 
 
 class TestSelectedTestsConfigOptions(unittest.TestCase):
