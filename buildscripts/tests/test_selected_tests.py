@@ -39,16 +39,16 @@ def tests_by_task_stub():
     }
 
 
-# class TestSelectedTestsAcceptance(unittest.TestCase):
-#     """A suite of Acceptance tests for selected_tests."""
-#
-#     def test_when(self):
-#         origin_build_variants = ["variant1"]
-#         evg_config = get_evergreen_config("etc/evergreen.yml")
-#         evg_api_mock = TestAcceptance._mock_evg_api()
-#         config_dict_of_suites_and_tasks = run(evg_api_mock, evg_config, selected_tests_service,
-#                                               selected_tests_variant_expansions, changed_files,
-#                                               origin_build_variants)
+class TestSelectedTestsAcceptance(unittest.TestCase):
+    """A suite of Acceptance tests for selected_tests."""
+
+    def test_when(self):
+        origin_build_variants = ["variant1"]
+        evg_config = get_evergreen_config("etc/evergreen.yml")
+        evg_api_mock = TestAcceptance._mock_evg_api()
+        config_dict_of_suites_and_tasks = run(evg_api_mock, evg_config, selected_tests_service,
+                                              selected_tests_variant_expansions, changed_files,
+                                              origin_build_variants)
 
 
 

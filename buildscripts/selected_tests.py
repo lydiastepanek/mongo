@@ -154,17 +154,15 @@ def _configure_logging(verbose: bool):
 
 def _find_selected_test_files(
         selected_tests_service: SelectedTestsService,
-        repo: Repo,
+        changed_files: Set[str],
 ) -> Set[str]:
     """
     Request related test files from selected-tests service and filter invalid files.
 
     :param selected_tests_service: Selected-tests service.
-    :param repo: The repo with changed files.
+    :param changed_files: Set of changed_files.
     :return: Set of test files returned by selected-tests service that are valid test files.
     """
-    changed_files = find_changed_files(repo)
-    LOGGER.debug("Found changed files", files=changed_files)
     test_mappings = selected_tests_service.get_test_mappings(RELATION_THRESHOLD, changed_files)
     return {
         test_file["name"]
@@ -333,7 +331,7 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
 def _get_task_configs(evg_conf: EvergreenProjectConfig,
                       selected_tests_service: SelectedTestsService,
                       selected_tests_variant_expansions: Dict[str, str],
-                      build_variant_config: Variant, repo: Repo) -> Dict[str, Dict]:
+                      build_variant_config: Variant, changed_files: Set[str]) -> Dict[str, Dict]:
     """
     Get task configurations for the tasks to be generated.
 
@@ -341,12 +339,12 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     :param selected_tests_service: Selected-tests service.
     :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :param build_variant_config: Config of build variant to collect task info from.
-    :param repo: The repo with changed files.
+    :param changed_files: Set of changed_files.
     :return: Task configurations.
     """
     task_configs = {}
 
-    related_test_files = _find_selected_test_files(selected_tests_service, repo)
+    related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
     LOGGER.debug("related test files found", related_test_files=related_test_files)
     if related_test_files:
         tests_by_task = create_task_list_for_tests(related_test_files, build_variant_config.name,
@@ -374,7 +372,7 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
 # pylint: disable=too-many-arguments
 def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
         selected_tests_service: SelectedTestsService,
-        selected_tests_variant_expansions: Dict[str, str], repo: Repo,
+        selected_tests_variant_expansions: Dict[str, str], changed_files: Set[str],
         origin_build_variants: List[str]) -> Dict[str, dict]:
     """
     Run code to select tasks to run based on test and task mappings for each of the build variants.
@@ -383,7 +381,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
     :param evg_conf: Evergreen configuration.
     :param selected_tests_service: Selected-tests service.
     :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
-    :param repo: The repo with changed files.
+    :param changed_files: Set of changed_files.
     :param origin_build_variants: Build variants to collect task info from.
     :return: Dict of files and file contents for generated tasks.
     """
@@ -396,7 +394,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
 
         task_configs = _get_task_configs(evg_conf, selected_tests_service,
                                          selected_tests_variant_expansions, build_variant_config,
-                                         repo)
+                                         changed_files)
 
         for task_config in task_configs.values():
             config_options = SelectedTestsConfigOptions.from_file(
@@ -458,14 +456,16 @@ def main(
     selected_tests_service = SelectedTestsService.from_file(selected_tests_config)
 
     repo = Repo(".")
+    changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
+    LOGGER.debug("Found changed files", files=changed_files)
 
     selected_tests_variant_expansions = read_config.read_config_file(expansion_file)
     origin_build_variants = selected_tests_variant_expansions["selected_tests_buildvariants"].split(
         " ")
 
     config_dict_of_suites_and_tasks = run(evg_api, evg_conf, selected_tests_service,
-                                          selected_tests_variant_expansions, repo,
+                                          selected_tests_variant_expansions, changed_files,
                                           origin_build_variants)
     write_file_dict(SELECTED_TESTS_CONFIG_DIR, config_dict_of_suites_and_tasks)
 
