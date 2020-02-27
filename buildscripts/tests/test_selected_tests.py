@@ -9,7 +9,6 @@ from shrub.config import Configuration
 import buildscripts.ciconfig.evergreen as _evergreen
 from buildscripts.evergreen_generate_resmoke_tasks import Suite
 from buildscripts.tests.test_burn_in_tests import get_evergreen_config
-from buildscripts.tests.test_evergreen_generate_resmoke_tasks import TestAcceptance
 from buildscripts import selected_tests as under_test
 
 # pylint: disable=missing-docstring,invalid-name,unused-argument,protected-access
@@ -40,14 +39,21 @@ def tests_by_task_stub():
     }
 
 
-class TestSelectedTestsAcceptance(unittest.TestCase):
+class TestAcceptance(unittest.TestCase):
     """A suite of Acceptance tests for selected_tests."""
 
     def setUp(self):
         Suite._current_index = 0
 
+    @staticmethod
+    def _mock_evg_api():
+        evg_api_mock = MagicMock()
+        task_mock = evg_api_mock.task_by_id.return_value
+        task_mock.execution = 0
+        return evg_api_mock
+
     def test_when_no_mappings_are_found_for_changed_files(self):
-        evg_api_mock = TestAcceptance._mock_evg_api()
+        evg_api_mock = self._mock_evg_api()
         evg_config = get_evergreen_config("etc/evergreen.yml")
         selected_tests_service_mock = MagicMock()
         selected_tests_service_mock.get_test_mappings.return_value = []
@@ -67,7 +73,7 @@ class TestSelectedTestsAcceptance(unittest.TestCase):
         self.assertEqual(config_dict["selected_tests_config.json"], "{}")
 
     def test_when_test_mappings_are_found_for_changed_files(self):
-        evg_api_mock = TestAcceptance._mock_evg_api()
+        evg_api_mock = self._mock_evg_api()
         evg_config = get_evergreen_config("etc/evergreen.yml")
         selected_tests_service_mock = MagicMock()
         selected_tests_service_mock.get_test_mappings.return_value = [
@@ -100,7 +106,7 @@ class TestSelectedTestsAcceptance(unittest.TestCase):
                           "auth_audit_7.yml", "selected_tests_config.json"])
 
     def test_when_task_mappings_are_found_for_changed_files(self):
-        evg_api_mock = TestAcceptance._mock_evg_api()
+        evg_api_mock = self._mock_evg_api()
         evg_config = get_evergreen_config("etc/evergreen.yml")
         selected_tests_service_mock = MagicMock()
         selected_tests_service_mock.get_task_mappings.return_value = [
