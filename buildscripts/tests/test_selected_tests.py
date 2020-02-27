@@ -41,14 +41,30 @@ def tests_by_task_stub():
 
 class TestSelectedTestsAcceptance(unittest.TestCase):
     """A suite of Acceptance tests for selected_tests."""
+    @staticmethod
+    def _mock_selected_tests_service():
+        selected_tests_service = MagicMock()
+        selected_tests_service.get_test_mappings.return_value = [
+            {
+                "source_file": "src/file1.cpp",
+                "test_files": [{"name": "jstests/auth/auth1.js"}],
+            },
+        ]
+        return selected_tests_service
 
-    def test_when(self):
-        origin_build_variants = ["variant1"]
-        evg_config = get_evergreen_config("etc/evergreen.yml")
+
+    def test_when_test_mappings_are_found_for_changed_files(self):
         evg_api_mock = TestAcceptance._mock_evg_api()
-        config_dict_of_suites_and_tasks = run(evg_api_mock, evg_config, selected_tests_service,
+        evg_config = get_evergreen_config("etc/evergreen.yml")
+        selected_tests_service_mock = self._mock_selected_tests_service()
+        selected_tests_variant_expansions = {"task_name": "selected_tests_gen", "build_variant": "selected-tests", "build_id": "my_build_id"}
+        changed_files = ["src/file1.cpp"]
+        origin_build_variants = ["enterprise-rhel-62-64-bit"]
+
+        config_dict_of_suites_and_tasks = under_test.run(evg_api_mock, evg_config, selected_tests_service_mock,
                                               selected_tests_variant_expansions, changed_files,
                                               origin_build_variants)
+        print(3)
 
 
 
@@ -478,26 +494,3 @@ class TestGetTaskConfigs(unittest.TestCase):
                                                     changed_files)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
-
-
-class TestRun(unittest.TestCase):
-    @patch(ns("SelectedTestsConfigOptions"))
-    @patch(ns("_get_task_configs"))
-    @patch(ns("_update_config_with_task"))
-    def test_run(self, update_config_with_task_mock, get_task_configs_mock,
-                 selected_tests_config_options):
-        get_task_configs_mock.return_value = {"task_config_key": "task_config_value_1"}
-
-        def update_config_with_task(evg_api, shrub_config, config_options,
-                                    config_dict_of_suites_and_tasks):
-            config_dict_of_suites_and_tasks["new_config_key"] = "new_config_values"
-            shrub_config.task("my_fake_task")
-
-        update_config_with_task_mock.side_effect = update_config_with_task
-        changed_files = {"src/file1.cpp", "src/file2.js"}
-
-        config_dict_of_suites_and_tasks = under_test.run(MagicMock(), MagicMock(), MagicMock(), {},
-                                                         changed_files, ["variant_1", "variant_2"])
-
-        self.assertEqual(config_dict_of_suites_and_tasks["new_config_key"], "new_config_values")
-        self.assertIn("my_fake_task", config_dict_of_suites_and_tasks["selected_tests_config.json"])
