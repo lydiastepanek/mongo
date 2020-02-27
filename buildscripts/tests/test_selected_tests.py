@@ -7,6 +7,7 @@ from shrub.config import Configuration
 
 # pylint: disable=wrong-import-position
 import buildscripts.ciconfig.evergreen as _evergreen
+from buildscripts.evergreen_generate_resmoke_tasks import Suite
 from buildscripts.tests.test_burn_in_tests import get_evergreen_config
 from buildscripts.tests.test_evergreen_generate_resmoke_tasks import TestAcceptance
 from buildscripts import selected_tests as under_test
@@ -42,41 +43,92 @@ def tests_by_task_stub():
 class TestSelectedTestsAcceptance(unittest.TestCase):
     """A suite of Acceptance tests for selected_tests."""
 
-    @staticmethod
-    def _mock_selected_tests_service():
-        selected_tests_service = MagicMock()
-        selected_tests_service.get_test_mappings.return_value = [
+    def setUp(self):
+        Suite._current_index = 0
+
+    def test_when_no_mappings_are_found_for_changed_files(self):
+        evg_api_mock = TestAcceptance._mock_evg_api()
+        evg_config = get_evergreen_config("etc/evergreen.yml")
+        selected_tests_service_mock = MagicMock()
+        selected_tests_service_mock.get_test_mappings.return_value = []
+        selected_tests_variant_expansions = {"task_name": "selected_tests_gen",
+                                             "build_variant": "selected-tests",
+                                             "build_id": "my_build_id",
+                                             "project": "mongodb-mongo-master"}
+        changed_files = ["src/file1.cpp"]
+        origin_build_variants = ["enterprise-rhel-62-64-bit"]
+
+        config_dict = under_test.run(evg_api_mock, evg_config,
+                                     selected_tests_service_mock,
+                                     selected_tests_variant_expansions,
+                                     changed_files,
+                                     origin_build_variants)
+
+        self.assertEqual(config_dict["selected_tests_config.json"], "{}")
+
+    def test_when_test_mappings_are_found_for_changed_files(self):
+        evg_api_mock = TestAcceptance._mock_evg_api()
+        evg_config = get_evergreen_config("etc/evergreen.yml")
+        selected_tests_service_mock = MagicMock()
+        selected_tests_service_mock.get_test_mappings.return_value = [
             {
                 "source_file": "src/file1.cpp",
                 "test_files": [{"name": "jstests/auth/auth1.js"}],
             },
         ]
-        return selected_tests_service
-
-    def test_when_test_mappings_are_found_for_changed_files(self):
-        evg_api_mock = TestAcceptance._mock_evg_api()
-        evg_config = get_evergreen_config("etc/evergreen.yml")
-        selected_tests_service_mock = self._mock_selected_tests_service()
         selected_tests_variant_expansions = {"task_name": "selected_tests_gen",
                                              "build_variant": "selected-tests",
                                              "build_id": "my_build_id",
                                              "project": "mongodb-mongo-master"}
-        # return {
-        #     "build_variant": "build_variant",
-        #     "fallback_num_sub_suites": 14,
-        #     "project": "mongodb-mongo-master",
-        #     "task_id": "task314",
-        #     "task_name": "some_task_gen",
-        # }
         changed_files = ["src/file1.cpp"]
         origin_build_variants = ["enterprise-rhel-62-64-bit"]
 
-        config_dict_of_suites_and_tasks = under_test.run(evg_api_mock, evg_config,
-                                                         selected_tests_service_mock,
-                                                         selected_tests_variant_expansions,
-                                                         changed_files,
-                                                         origin_build_variants)
-        print(3)
+        config_dict = under_test.run(evg_api_mock, evg_config,
+                                     selected_tests_service_mock,
+                                     selected_tests_variant_expansions,
+                                     changed_files,
+                                     origin_build_variants)
+
+        self.assertTrue(config_dict["selected_tests_config.json"])
+        # jstests/auth/auth1.js belongs to two suites, auth and auth_audit, each of which has
+        # fallback_num_sub_suites = 4 in their resmoke args, resulting in 4 subtasks being generated
+        # for each
+        self.assertEqual(len(config_dict), 9)
+        self.assertEqual(sorted(config_dict.keys()),
+                         ["auth_0.yml", "auth_1.yml", "auth_2.yml", "auth_3.yml",
+                          "auth_audit_4.yml", "auth_audit_5.yml", "auth_audit_6.yml",
+                          "auth_audit_7.yml", "selected_tests_config.json"])
+
+    def test_when_task_mappings_are_found_for_changed_files(self):
+        evg_api_mock = TestAcceptance._mock_evg_api()
+        evg_config = get_evergreen_config("etc/evergreen.yml")
+        selected_tests_service_mock = MagicMock()
+        selected_tests_service_mock.get_task_mappings.return_value = [
+            {
+                "source_file": "src/file1.cpp",
+                "tasks": [{"name": "auth"}],
+            },
+        ]
+        selected_tests_variant_expansions = {"task_name": "selected_tests_gen",
+                                             "build_variant": "selected-tests",
+                                             "build_id": "my_build_id",
+                                             "project": "mongodb-mongo-master"}
+        changed_files = ["src/file1.cpp"]
+        origin_build_variants = ["enterprise-rhel-62-64-bit"]
+
+        config_dict = under_test.run(evg_api_mock, evg_config,
+                                     selected_tests_service_mock,
+                                     selected_tests_variant_expansions,
+                                     changed_files,
+                                     origin_build_variants)
+
+        self.assertTrue(config_dict["selected_tests_config.json"])
+        # the auth task's generator task, auth_gen, has fallback_num_sub_suites = 4 in
+        # its resmoke args, resulting in 4 subtasks being generated, plus a _misc task
+        self.assertEqual(len(config_dict), 6)
+        self.assertEqual(sorted(config_dict.keys()),
+                         ["auth_0.yml", "auth_1.yml", "auth_2.yml", "auth_3.yml", "auth_misc.yml",
+                          "selected_tests_config.json"])
 
 
 class TestSelectedTestsConfigOptions(unittest.TestCase):
