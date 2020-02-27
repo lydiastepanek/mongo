@@ -7,6 +7,8 @@ from shrub.config import Configuration
 
 # pylint: disable=wrong-import-position
 import buildscripts.ciconfig.evergreen as _evergreen
+from buildscripts.tests.test_burn_in_tests import get_evergreen_config
+from buildscripts.tests.test_evergreen_generate_resmoke_tasks import TestAcceptance
 from buildscripts import selected_tests as under_test
 
 # pylint: disable=missing-docstring,invalid-name,unused-argument,protected-access
@@ -35,6 +37,19 @@ def tests_by_task_stub():
             "distro": "rhel62-small",
         },
     }
+
+
+class TestSelectedTestsAcceptance(unittest.TestCase):
+    """A suite of Acceptance tests for selected_tests."""
+
+    def test_when(self):
+        origin_build_variants = ["variant1"]
+        evg_config = get_evergreen_config("etc/evergreen.yml")
+        evg_api_mock = TestAcceptance._mock_evg_api()
+        config_dict_of_suites_and_tasks = run(evg_api_mock, evg_config, selected_tests_service,
+                                              selected_tests_variant_expansions, changed_files,
+                                              origin_build_variants)
+
 
 
 class TestSelectedTestsConfigOptions(unittest.TestCase):
