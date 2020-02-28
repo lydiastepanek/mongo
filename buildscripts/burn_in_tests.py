@@ -234,18 +234,19 @@ def is_file_a_test_file(file_path: str) -> bool:
 
     return True
 
-def find_changed_files_in_repos(repos: Iterable[Repo]) -> Set[str]:
+def find_changed_files_in_repos(repos: Iterable[Repo], relative_to_mongo_directory: bool) -> Set[str]:
     """
     Find the changed files.
 
     Use git to find which files have changed in this patch.
 
     :param repos: List of repos containing changed files.
+    :param relative_to_mongo_directory: Whether returned paths should contain path relative to mongo.
     :returns: Set of changed tests.
     """
     all_changed_files = set()
     for repo in repos:
-        changed_files = find_changed_files(repo)
+        changed_files = find_changed_files(repo, relative_to_mongo_directory)
         all_changed_files.update(changed_files)
     LOGGER.debug("Found changed files", files=all_changed_files)
     return all_changed_files
@@ -261,7 +262,7 @@ def find_changed_tests(repos: Iterable[Repo]) -> Set[str]:
     :param repos: List of repos containing changed files.
     :returns: Set of changed tests.
     """
-    changed_files = find_changed_files_in_repos(repos)
+    changed_files = find_changed_files_in_repos(repos, True)
     return {
         os.path.normpath(path)
         for path in changed_files if is_file_a_test_file(path)
