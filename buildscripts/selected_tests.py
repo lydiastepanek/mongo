@@ -23,7 +23,7 @@ if __name__ == "__main__" and __package__ is None:
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
 from buildscripts.burn_in_tests import DEFAULT_REPO_LOCATIONS, create_task_list_for_tests, \
-    is_file_a_test_file
+    find_changed_files_in_repos, is_file_a_test_file
 from buildscripts.ciconfig.evergreen import (
     EvergreenProjectConfig,
     ResmokeArgs,
@@ -39,7 +39,6 @@ from buildscripts.evergreen_generate_resmoke_tasks import (
     remove_gen_suffix,
     write_file_dict,
 )
-from buildscripts.patch_builds.change_data import find_changed_files
 from buildscripts.patch_builds.selected_tests_service import SelectedTestsService
 
 structlog.configure(logger_factory=LoggerFactory())
@@ -345,7 +344,7 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     """
     task_configs = {}
 
-    changed_files = find_changed_files(repos)
+    changed_files = find_changed_files_in_repos(repos)
     LOGGER.debug("Found changed files", files=changed_files)
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)

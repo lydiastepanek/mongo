@@ -234,27 +234,38 @@ def is_file_a_test_file(file_path: str) -> bool:
 
     return True
 
+def find_changed_files_in_repos(repos: Iterable[Repo]) -> Set[str]:
+    """
+    Find the changed files.
+
+    Use git to find which files have changed in this patch.
+
+    :param repos: List of repos containing changed files.
+    :returns: Set of changed tests.
+    """
+    all_changed_files = set()
+    for repo in repos:
+        changed_files = find_changed_files(repo)
+        all_changed_files.update(changed_files)
+    LOGGER.debug("Found changed files", files=all_changed_files)
+    return all_changed_files
+
 
 def find_changed_tests(repos: Iterable[Repo]) -> Set[str]:
     """
     Find the changed tests.
 
-    Use git to find which files have changed in this patch.
+    Use git to find which test files have changed in this patch.
     The returned file paths are in normalized form (see os.path.normpath(path)).
 
+    :param repos: List of repos containing changed files.
     :returns: Set of changed tests.
     """
-    all_changed_tests = set()
-    for repo in repos:
-        changed_files = find_changed_files(repo)
-        LOGGER.debug("Found changed files", files=changed_files)
-        changed_tests = {
-            os.path.normpath(path)
-            for path in changed_files if is_file_a_test_file(path)
-        }
-        LOGGER.debug("Found changed tests", files=changed_tests)
-        all_changed_tests.update(changed_tests)
-    return all_changed_tests
+    changed_files = find_changed_files_in_repos(repos)
+    return {
+        os.path.normpath(path)
+        for path in changed_files if is_file_a_test_file(path)
+    }
 
 
 def find_excludes(selector_file: str) -> Tuple[List, List, List]:
@@ -721,6 +732,7 @@ def create_tests_by_task(build_variant: str, repos: Iterable[Repo],
     :return: Tests by task.
     """
     changed_tests = find_changed_tests(repos)
+    LOGGER.debug("Found changed tests", files=changed_tests)
     exclude_suites, exclude_tasks, exclude_tests = find_excludes(SELECTOR_FILE)
     changed_tests = filter_tests(changed_tests, exclude_tests)
 

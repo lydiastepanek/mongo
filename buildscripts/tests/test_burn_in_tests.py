@@ -1095,15 +1095,33 @@ class TestCreateTaskList(unittest.TestCase):
             under_test.create_task_list(evg_conf_mock, variant, suite_dict, [])
 
 
-class TestFindChangedTests(unittest.TestCase):
+class TestFindChangedFilesInRepos(unittest.TestCase):
     @patch(ns("find_changed_files"))
     def test_nothing_found(self, changed_files_mock):
-        repo_mock = MagicMock()
+        repos_mock = [MagicMock()]
         changed_files_mock.return_value = set()
 
-        self.assertEqual(0, len(under_test.find_changed_tests(repo_mock)))
+        self.assertEqual(0, len(under_test.find_changed_files_in_repos(repos_mock)))
+
 
     @patch(ns("find_changed_files"))
+    def test_changed_files_in_multiple_repos(self, changed_files_mock):
+        repos_mock = [MagicMock(), MagicMock()]
+        first_repo_file_changes = [
+            os.path.join("jstests", "test1.js"),
+            os.path.join("jstests", "test1.cpp"),
+        ]
+        second_repo_file_changes = [
+            os.path.join("jstests", "test2.js"),
+        ]
+        changed_files_mock.side_effect = [first_repo_file_changes, second_repo_file_changes]
+
+        self.assertEqual(3, len(under_test.find_changed_files_in_repos(repos_mock)))
+
+
+
+class TestFindChangedTests(unittest.TestCase):
+    @patch(ns("find_changed_files_in_repos"))
     @patch(ns("os.path.isfile"))
     def test_non_js_files_filtered(self, is_file_mock, changed_files_mock):
         repo_mock = MagicMock()
@@ -1121,7 +1139,7 @@ class TestFindChangedTests(unittest.TestCase):
         self.assertIn(file_list[2], found_tests)
         self.assertNotIn(file_list[1], found_tests)
 
-    @patch(ns("find_changed_files"))
+    @patch(ns("find_changed_files_in_repos"))
     @patch(ns("os.path.isfile"))
     def test_missing_files_filtered(self, is_file_mock, changed_files_mock):
         repo_mock = MagicMock()
@@ -1137,7 +1155,7 @@ class TestFindChangedTests(unittest.TestCase):
 
         self.assertEqual(0, len(found_tests))
 
-    @patch(ns("find_changed_files"))
+    @patch(ns("find_changed_files_in_repos"))
     @patch(ns("os.path.isfile"))
     def test_non_jstests_files_filtered(self, is_file_mock, changed_files_mock):
         repo_mock = MagicMock()
