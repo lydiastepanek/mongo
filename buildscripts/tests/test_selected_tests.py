@@ -63,11 +63,11 @@ class TestAcceptance(unittest.TestCase):
             "task_name": "selected_tests_gen", "build_variant": "selected-tests",
             "build_id": "my_build_id", "project": "mongodb-mongo-master"
         }
-        changed_files = ["src/file1.cpp"]
+        repos_mock = [MagicMock()]
         origin_build_variants = ["enterprise-rhel-62-64-bit"]
 
         config_dict = under_test.run(evg_api_mock, evg_config, selected_tests_service_mock,
-                                     selected_tests_variant_expansions, changed_files,
+                                     selected_tests_variant_expansions, repos_mock,
                                      origin_build_variants)
 
         self.assertEqual(config_dict["selected_tests_config.json"], "{}")
@@ -87,11 +87,11 @@ class TestAcceptance(unittest.TestCase):
             "task_name": "selected_tests_gen", "build_variant": "selected-tests",
             "build_id": "my_build_id", "project": "mongodb-mongo-master"
         }
-        changed_files = ["src/file1.cpp"]
+        repos_mock = [MagicMock()]
         origin_build_variants = ["enterprise-rhel-62-64-bit"]
 
         config_dict = under_test.run(evg_api_mock, evg_config, selected_tests_service_mock,
-                                     selected_tests_variant_expansions, changed_files,
+                                     selected_tests_variant_expansions, repos_mock,
                                      origin_build_variants)
 
         self.assertIn("selected_tests_config.json", config_dict)
@@ -121,11 +121,11 @@ class TestAcceptance(unittest.TestCase):
             "task_name": "selected_tests_gen", "build_variant": "selected-tests",
             "build_id": "my_build_id", "project": "mongodb-mongo-master"
         }
-        changed_files = ["src/file1.cpp"]
+        repos_mock = [MagicMock()]
         origin_build_variants = ["enterprise-rhel-62-64-bit"]
 
         config_dict = under_test.run(evg_api_mock, evg_config, selected_tests_service_mock,
-                                     selected_tests_variant_expansions, changed_files,
+                                     selected_tests_variant_expansions, repos_mock,
                                      origin_build_variants)
 
         self.assertIn("selected_tests_config.json", config_dict)
@@ -515,10 +515,10 @@ class TestGetTaskConfigs(unittest.TestCase):
             "task_config_key": "task_config_value_1"
         }
         find_selected_tasks_mock.return_value = set()
-        changed_files = {"src/file1.cpp", "src/file2.js"}
+        repos_mock = [MagicMock()]
 
         task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                    changed_files)
+                                                    repos_mock)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_1")
 
@@ -534,10 +534,10 @@ class TestGetTaskConfigs(unittest.TestCase):
         get_task_configs_for_task_mappings_mock.return_value = {
             "task_config_key": "task_config_value_2"
         }
-        changed_files = {"src/file1.cpp", "src/file2.js"}
+        repos_mock = [MagicMock()]
 
         task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                    changed_files)
+                                                    repos_mock)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
 
@@ -559,9 +559,9 @@ class TestGetTaskConfigs(unittest.TestCase):
         get_task_configs_for_task_mappings_mock.return_value = {
             "task_config_key": "task_config_value_2"
         }
-        changed_files = {"src/file1.cpp", "src/file2.js"}
+        repos_mock = [MagicMock()]
 
         task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                    changed_files)
+                                                    repos_mock)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
