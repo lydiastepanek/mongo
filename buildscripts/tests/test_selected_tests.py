@@ -91,7 +91,7 @@ class TestAcceptance(unittest.TestCase):
                                      selected_tests_variant_expansions, changed_files,
                                      origin_build_variants)
 
-        self.assertTrue(config_dict["selected_tests_config.json"])
+        self.assertIn("selected_tests_config.json", config_dict)
         # jstests/auth/auth1.js belongs to two suites, auth and auth_audit, each of which has
         # fallback_num_sub_suites = 4 in their resmoke args, resulting in 4 subtasks being generated
         # for each
@@ -124,7 +124,7 @@ class TestAcceptance(unittest.TestCase):
                                      selected_tests_variant_expansions, changed_files,
                                      origin_build_variants)
 
-        self.assertTrue(config_dict["selected_tests_config.json"])
+        self.assertIn("selected_tests_config.json", config_dict)
         # the auth task's generator task, auth_gen, has fallback_num_sub_suites = 4 in
         # its resmoke args, resulting in 4 subtasks being generated, plus a _misc task
         self.assertEqual(len(config_dict), 6)
