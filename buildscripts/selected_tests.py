@@ -22,7 +22,8 @@ if __name__ == "__main__" and __package__ is None:
 # pylint: disable=wrong-import-position
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
-from buildscripts.burn_in_tests import create_task_list_for_tests, is_file_a_test_file
+from buildscripts.burn_in_tests import DEFAULT_REPO_LOCATIONS, create_task_list_for_tests, \
+    find_changed_files_in_repos, is_file_a_test_file
 from buildscripts.ciconfig.evergreen import (
     EvergreenProjectConfig,
     ResmokeArgs,
@@ -38,7 +39,6 @@ from buildscripts.evergreen_generate_resmoke_tasks import (
     remove_gen_suffix,
     write_file_dict,
 )
-from buildscripts.patch_builds.change_data import find_changed_files
 from buildscripts.patch_builds.selected_tests_service import SelectedTestsService
 
 structlog.configure(logger_factory=LoggerFactory())
@@ -154,7 +154,7 @@ def _configure_logging(verbose: bool):
 
 def _find_selected_test_files(
         selected_tests_service: SelectedTestsService,
-        changed_files: Set[str],
+        changed_files: Set[str]
 ) -> Set[str]:
     """
     Request related test files from selected-tests service and filter invalid files.
@@ -331,7 +331,7 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
 def _get_task_configs(evg_conf: EvergreenProjectConfig,
                       selected_tests_service: SelectedTestsService,
                       selected_tests_variant_expansions: Dict[str, str],
-                      build_variant_config: Variant, changed_files: Set[str]) -> Dict[str, Dict]:
+                      build_variant_config: Variant, repos: List[Repo]) -> Dict[str, Dict]:
     """
     Get task configurations for the tasks to be generated.
 
@@ -339,10 +339,13 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     :param selected_tests_service: Selected-tests service.
     :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :param build_variant_config: Config of build variant to collect task info from.
-    :param changed_files: Set of changed_files.
+    :param repos: List of repos containing changed files.
     :return: Task configurations.
     """
     task_configs = {}
+
+    changed_files = find_changed_files_in_repos(repos)
+    LOGGER.debug("Found changed files", files=changed_files)
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
     LOGGER.debug("related test files found", related_test_files=related_test_files)
@@ -372,7 +375,7 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
 # pylint: disable=too-many-arguments
 def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
         selected_tests_service: SelectedTestsService,
-        selected_tests_variant_expansions: Dict[str, str], changed_files: Set[str],
+        selected_tests_variant_expansions: Dict[str, str], repos: List[Repo],
         origin_build_variants: List[str]) -> Dict[str, dict]:
     """
     Run code to select tasks to run based on test and task mappings for each of the build variants.
@@ -381,7 +384,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
     :param evg_conf: Evergreen configuration.
     :param selected_tests_service: Selected-tests service.
     :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
-    :param changed_files: Set of changed_files.
+    :param repos: List of repos containing changed files.
     :param origin_build_variants: Build variants to collect task info from.
     :return: Dict of files and file contents for generated tasks.
     """
@@ -394,7 +397,7 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
 
         task_configs = _get_task_configs(evg_conf, selected_tests_service,
                                          selected_tests_variant_expansions, build_variant_config,
-                                         changed_files)
+                                         repos)
 
         for task_config in task_configs.values():
             config_options = SelectedTestsConfigOptions.from_file(
@@ -454,18 +457,16 @@ def main(
     evg_api = RetryingEvergreenApi.get_api(config_file=evg_api_config)
     evg_conf = parse_evergreen_file(EVERGREEN_FILE)
     selected_tests_service = SelectedTestsService.from_file(selected_tests_config)
+    repos = [Repo(x) for x in DEFAULT_REPO_LOCATIONS if os.path.isdir(x)]
 
-    repo = Repo(".")
-    changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
-    LOGGER.debug("Found changed files", files=changed_files)
 
     selected_tests_variant_expansions = read_config.read_config_file(expansion_file)
     origin_build_variants = selected_tests_variant_expansions["selected_tests_buildvariants"].split(
         " ")
 
     config_dict_of_suites_and_tasks = run(evg_api, evg_conf, selected_tests_service,
-                                          selected_tests_variant_expansions, changed_files,
+                                          selected_tests_variant_expansions, repos,
                                           origin_build_variants)
     write_file_dict(SELECTED_TESTS_CONFIG_DIR, config_dict_of_suites_and_tasks)
 
