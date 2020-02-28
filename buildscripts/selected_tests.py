@@ -22,7 +22,8 @@ if __name__ == "__main__" and __package__ is None:
 # pylint: disable=wrong-import-position
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
-from buildscripts.burn_in_tests import create_task_list_for_tests, is_file_a_test_file
+from buildscripts.burn_in_tests import DEFAULT_REPO_LOCATIONS, create_task_list_for_tests, \
+    is_file_a_test_file
 from buildscripts.ciconfig.evergreen import (
     EvergreenProjectConfig,
     ResmokeArgs,
@@ -455,6 +456,7 @@ def main(
     evg_conf = parse_evergreen_file(EVERGREEN_FILE)
     selected_tests_service = SelectedTestsService.from_file(selected_tests_config)
 
+    repos = [Repo(x) for x in DEFAULT_REPO_LOCATIONS if os.path.isdir(x)]
     repo = Repo(".")
     changed_files = find_changed_files(repo)
     buildscripts.resmokelib.parser.set_options()
