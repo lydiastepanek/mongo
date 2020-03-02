@@ -569,7 +569,8 @@ class TestGetTaskConfigs(unittest.TestCase):
 
 class RemoveEnterpriseModulesPrefix(unittest.TestCase):
     def test_file_is_in_enterprise_modules(self):
-        filepath = under_test._remove_enterprise_modules_prefix("src/mongo/db/modules/enterprise/src/file1.cpp")
+        filepath = under_test._remove_enterprise_modules_prefix(
+            "src/mongo/db/modules/enterprise/src/file1.cpp")
 
         self.assertEqual(filepath, "src/file1.cpp")
 
