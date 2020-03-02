@@ -1103,7 +1103,6 @@ class TestFindChangedFilesInRepos(unittest.TestCase):
 
         self.assertEqual(0, len(under_test.find_changed_files_in_repos(repos_mock)))
 
-
     @patch(ns("find_changed_files"))
     def test_changed_files_in_multiple_repos(self, changed_files_mock):
         repos_mock = [MagicMock(), MagicMock()]
@@ -1117,7 +1116,6 @@ class TestFindChangedFilesInRepos(unittest.TestCase):
         changed_files_mock.side_effect = [first_repo_file_changes, second_repo_file_changes]
 
         self.assertEqual(3, len(under_test.find_changed_files_in_repos(repos_mock)))
-
 
 
 class TestFindChangedTests(unittest.TestCase):

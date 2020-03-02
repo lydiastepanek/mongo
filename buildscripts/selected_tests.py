@@ -153,10 +153,8 @@ def _configure_logging(verbose: bool):
         logging.getLogger(log_name).setLevel(logging.WARNING)
 
 
-def _find_selected_test_files(
-        selected_tests_service: SelectedTestsService,
-        changed_files: Set[str]
-) -> Set[str]:
+def _find_selected_test_files(selected_tests_service: SelectedTestsService,
+                              changed_files: Set[str]) -> Set[str]:
     """
     Request related test files from selected-tests service and filter invalid files.
 
@@ -328,6 +326,7 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
 
     return evg_task_configs
 
+
 def _remove_enterprise_modules_prefix(file_path: str) -> str:
     """
     Remove the enterprise modules prefix from the filepath.
@@ -357,7 +356,9 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     task_configs = {}
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
-    LOGGER.debug("related test files found", related_test_files=related_test_files)
+    LOGGER.debug("related test files found", related_test_files=related_test_files,
+                 variant=build_variant_config.name)
+
     if related_test_files:
         tests_by_task = create_task_list_for_tests(related_test_files, build_variant_config.name,
                                                    evg_conf)
@@ -369,7 +370,8 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
 
     related_tasks = _find_selected_tasks(selected_tests_service, changed_files,
                                          build_variant_config)
-    LOGGER.debug("related tasks found", related_tasks=related_tasks)
+    LOGGER.debug("related tasks found", related_tasks=related_tasks,
+                 variant=build_variant_config.name)
     if related_tasks:
         task_mapping_task_configs = _get_task_configs_for_task_mappings(
             selected_tests_variant_expansions, related_tasks, build_variant_config)
@@ -401,11 +403,9 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
     config_dict_of_suites_and_tasks = {}
 
     changed_files = find_changed_files_in_repos(repos)
-    LOGGER.debug("Found changed files", files=changed_files)
 
     changed_files = {_remove_enterprise_modules_prefix(file_path) for file_path in changed_files}
-    changed_files = {'src/fle/query_analysis/fle_pipeline.cpp'}
-    LOGGER.debug("Edited changed files", files=changed_files)
+    LOGGER.debug("Found changed files", files=changed_files)
 
     for build_variant in origin_build_variants:
         build_variant_config = evg_conf.get_variant(build_variant)

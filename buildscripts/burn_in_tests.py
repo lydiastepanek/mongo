@@ -234,6 +234,7 @@ def is_file_a_test_file(file_path: str) -> bool:
 
     return True
 
+
 def find_changed_files_in_repos(repos: Iterable[Repo]) -> Set[str]:
     """
     Find the changed files.
@@ -262,10 +263,7 @@ def find_changed_tests(repos: Iterable[Repo]) -> Set[str]:
     :returns: Set of changed tests.
     """
     changed_files = find_changed_files_in_repos(repos)
-    return {
-        os.path.normpath(path)
-        for path in changed_files if is_file_a_test_file(path)
-    }
+    return {os.path.normpath(path) for path in changed_files if is_file_a_test_file(path)}
 
 
 def find_excludes(selector_file: str) -> Tuple[List, List, List]:
