@@ -46,12 +46,12 @@ def _modified_files_for_diff(diff: DiffIndex, log: Any) -> Set:
     return modified_files.union(added_files).union(renamed_files).union(deleted_files)
 
 
-def find_changed_files(repo: Repo, relative_to_mongo_directory: bool) -> Set[str]:
+def find_changed_files(repo: Repo) -> Set[str]:
     """
     Find files that were new or added to the repository between commits.
 
     :param repo: Git repository.
-    :param relative_to_mongo_directory: Whether returned paths should contain path relative to mongo.
+
     :return: Set of changed files.
     """
     diff = repo.index.diff(None)
@@ -65,10 +65,4 @@ def find_changed_files(repo: Repo, relative_to_mongo_directory: bool) -> Set[str
     LOGGER.info("untracked files", files=untracked_files, diff="untracked diff")
 
     paths = work_tree_files.union(index_files).union(untracked_files)
-
-    if relative_to_mongo_directory:
-        return [
-            os.path.relpath(f"{repo.working_dir}/{os.path.normpath(path)}", os.getcwd())
-            for path in paths
-        ]
     return paths

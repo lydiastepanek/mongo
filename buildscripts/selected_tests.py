@@ -344,7 +344,7 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     """
     task_configs = {}
 
-    changed_files = find_changed_files_in_repos(repos, False)
+    changed_files = find_changed_files_in_repos(repos)
     LOGGER.debug("Found changed files", files=changed_files)
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
