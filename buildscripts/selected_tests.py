@@ -52,7 +52,7 @@ EXTERNAL_LOGGERS = {
     "urllib3",
 }
 SELECTED_TESTS_CONFIG_DIR = "selected_tests_config"
-ENTERPRISE_MODULES_FILE_PREFIX = "src/mongo/db/modules/enterprise"
+ENTERPRISE_MODULES_FILE_PREFIX = "src/mongo/db/modules/enterprise/"
 RELATION_THRESHOLD = 0.1
 
 COMPILE_TASK_PATTERN = re.compile(".*compile.*")
@@ -343,7 +343,7 @@ def _remove_enterprise_modules_prefix(file_path: str) -> str:
 def _get_task_configs(evg_conf: EvergreenProjectConfig,
                       selected_tests_service: SelectedTestsService,
                       selected_tests_variant_expansions: Dict[str, str],
-                      build_variant_config: Variant, repos: List[Repo]) -> Dict[str, Dict]:
+                      build_variant_config: Variant, changed_files: Set[str]) -> Dict[str, Dict]:
     """
     Get task configurations for the tasks to be generated.
 
@@ -351,16 +351,10 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     :param selected_tests_service: Selected-tests service.
     :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
     :param build_variant_config: Config of build variant to collect task info from.
-    :param repos: List of repos containing changed files.
+    :param changed_files: Set of changed_files.
     :return: Task configurations.
     """
     task_configs = {}
-
-    changed_files = find_changed_files_in_repos(repos)
-    LOGGER.debug("Found changed files", files=changed_files)
-
-    changed_files = {_remove_enterprise_modules_prefix(file_path) for file_path in changed_files}
-    LOGGER.debug("Edited changed files", files=changed_files)
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
     LOGGER.debug("related test files found", related_test_files=related_test_files)
@@ -406,13 +400,20 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
     shrub_config = Configuration()
     config_dict_of_suites_and_tasks = {}
 
+    changed_files = find_changed_files_in_repos(repos)
+    LOGGER.debug("Found changed files", files=changed_files)
+
+    changed_files = {_remove_enterprise_modules_prefix(file_path) for file_path in changed_files}
+    changed_files = {'src/fle/query_analysis/fle_pipeline.cpp'}
+    LOGGER.debug("Edited changed files", files=changed_files)
+
     for build_variant in origin_build_variants:
         build_variant_config = evg_conf.get_variant(build_variant)
         origin_variant_expansions = build_variant_config.expansions
 
         task_configs = _get_task_configs(evg_conf, selected_tests_service,
                                          selected_tests_variant_expansions, build_variant_config,
-                                         repos)
+                                         changed_files)
 
         for task_config in task_configs.values():
             config_options = SelectedTestsConfigOptions.from_file(

@@ -515,10 +515,10 @@ class TestGetTaskConfigs(unittest.TestCase):
             "task_config_key": "task_config_value_1"
         }
         find_selected_tasks_mock.return_value = set()
-        repos_mock = [MagicMock()]
+        changed_files = {"src/file1.cpp", "src/file2.js"}
 
         task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                    repos_mock)
+                                                    changed_files)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_1")
 
@@ -534,10 +534,10 @@ class TestGetTaskConfigs(unittest.TestCase):
         get_task_configs_for_task_mappings_mock.return_value = {
             "task_config_key": "task_config_value_2"
         }
-        repos_mock = [MagicMock()]
+        changed_files = {"src/file1.cpp", "src/file2.js"}
 
         task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                    repos_mock)
+                                                    changed_files)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
 
@@ -559,9 +559,9 @@ class TestGetTaskConfigs(unittest.TestCase):
         get_task_configs_for_task_mappings_mock.return_value = {
             "task_config_key": "task_config_value_2"
         }
-        repos_mock = [MagicMock()]
+        changed_files = {"src/file1.cpp", "src/file2.js"}
 
         task_configs = under_test._get_task_configs(MagicMock(), MagicMock(), {}, MagicMock(),
-                                                    repos_mock)
+                                                    changed_files)
 
         self.assertEqual(task_configs["task_config_key"], "task_config_value_2")
