@@ -403,7 +403,6 @@ def run(evg_api: EvergreenApi, evg_conf: EvergreenProjectConfig,
     config_dict_of_suites_and_tasks = {}
 
     changed_files = find_changed_files_in_repos(repos)
-
     changed_files = {_remove_enterprise_modules_prefix(file_path) for file_path in changed_files}
     LOGGER.debug("Found changed files", files=changed_files)
 
