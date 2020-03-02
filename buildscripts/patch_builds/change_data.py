@@ -65,4 +65,8 @@ def find_changed_files(repo: Repo) -> Set[str]:
     LOGGER.info("untracked files", files=untracked_files, diff="untracked diff")
 
     paths = work_tree_files.union(index_files).union(untracked_files)
-    return paths
+
+    return [
+        os.path.relpath(f"{repo.working_dir}/{os.path.normpath(path)}", os.getcwd())
+        for path in paths
+    ]
