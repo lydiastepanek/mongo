@@ -52,6 +52,7 @@ EXTERNAL_LOGGERS = {
     "urllib3",
 }
 SELECTED_TESTS_CONFIG_DIR = "selected_tests_config"
+ENTERPRISE_MODULES_FILE_PREFIX = "src/mongo/db/modules/enterprise"
 RELATION_THRESHOLD = 0.1
 
 COMPILE_TASK_PATTERN = re.compile(".*compile.*")
@@ -327,6 +328,17 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
 
     return evg_task_configs
 
+def _remove_enterprise_modules_prefix(file_path: str) -> str:
+    """
+    Remove the enterprise modules prefix from the filepath.
+
+    :param file_path: Path of the changed file.
+    :return: Path of the changed file without enterprise module prefix.
+    """
+    if file_path.startswith(ENTERPRISE_MODULES_FILE_PREFIX):
+        return file_path[len(ENTERPRISE_MODULES_FILE_PREFIX):]
+    return file_path
+
 
 def _get_task_configs(evg_conf: EvergreenProjectConfig,
                       selected_tests_service: SelectedTestsService,
@@ -346,6 +358,8 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
 
     changed_files = find_changed_files_in_repos(repos)
     LOGGER.debug("Found changed files", files=changed_files)
+
+    changed_files = {_remove_enterprise_modules_prefix(file_path) for file_path in changed_files}
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
     LOGGER.debug("related test files found", related_test_files=related_test_files)
