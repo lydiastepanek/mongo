@@ -360,6 +360,7 @@ def _get_task_configs(evg_conf: EvergreenProjectConfig,
     LOGGER.debug("Found changed files", files=changed_files)
 
     changed_files = {_remove_enterprise_modules_prefix(file_path) for file_path in changed_files}
+    LOGGER.debug("Edited changed files", files=changed_files)
 
     related_test_files = _find_selected_test_files(selected_tests_service, changed_files)
     LOGGER.debug("related test files found", related_test_files=related_test_files)
