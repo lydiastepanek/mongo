@@ -107,21 +107,10 @@ def main(
     final_results = defaultdict(dict)
 
     version_ids = [
-         # "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
-         # "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
-         # "mongodb_mongo_master_63253ac8554b2a867de988fed5077ecfbc4522e0",
-         # "mongodb_mongo_master_ad642bcf1a2d59600e891c4666a80be4d5f6b4bf",
-         # "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
-         # "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
-
-        # "mongodb_mongo_master_5e607a45d34a4f977341591eec107a7a8a361626",
-        # "mongodb_mongo_master_6aab3ab5b6c20dd46cb659e8eaefb597f2b53263",
-        # "mongodb_mongo_master_859b127ed3f86a180010be87cb1b9ccf81db9845",
-        # "mongodb_mongo_master_8cdcfd2ab0d28dca863557a02cafc86ae80f960e",
-        # "mongodb_mongo_master_a6d5ee2ecb12a8a033f0af31304d132cf69266e5",
-        # "mongodb_mongo_master_a929cf1b5d09783bafa93320060aff8a91a76c6e",
-        # "mongodb_mongo_master_cde28e2ab957bd4a27ef240dfbfeea3cc8a70b74",
-
+        "mongodb_mongo_master_8cdcfd2ab0d28dca863557a02cafc86ae80f960e",
+        "mongodb_mongo_master_5e607a45d34a4f977341591eec107a7a8a361626",
+        "mongodb_mongo_master_6aab3ab5b6c20dd46cb659e8eaefb597f2b53263",
+        "mongodb_mongo_master_a6d5ee2ecb12a8a033f0af31304d132cf69266e5",
         "mongodb_mongo_master_c8007d0d9574088031d34e70f36f2fcbd17fe253"
     ]
     for version_id in version_ids:
