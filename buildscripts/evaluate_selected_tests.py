@@ -6,7 +6,6 @@ import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
 from collections import defaultdict
 import pytz
-import pdb
 
 import click
 import structlog
@@ -23,7 +22,7 @@ if __name__ == "__main__" and __package__ is None:
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
 from buildscripts.burn_in_tests import DEFAULT_REPO_LOCATIONS, create_task_list_for_tests
-from buildscripts.selected_tests import _find_selected_test_files, _find_selected_tasks, filter_excluded_tasks
+from buildscripts.selected_tests import _find_selected_test_files, _find_selected_tasks, filter_excluded_tasks, _remove_repo_path_prefix
 from buildscripts.ciconfig.evergreen import (
     parse_evergreen_file, )
 from buildscripts.patch_builds.change_data import find_changed_files
@@ -107,11 +106,25 @@ def main(
     final_results = defaultdict(dict)
 
     version_ids = [
+        "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
+        "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
+        "mongodb_mongo_master_63253ac8554b2a867de988fed5077ecfbc4522e0",
+        "mongodb_mongo_master_ad642bcf1a2d59600e891c4666a80be4d5f6b4bf",
+        "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
+        "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
+        "mongodb_mongo_master_5b50a111c9361554bc7dbe6a8c63c885a5c29df6",
+        "mongodb_mongo_master_61ea39197455ca2e54135607e5625bb2c2796ec3",
+        "mongodb_mongo_master_f83f9dcc22156cdf3c3e16a040914806e2e17cf7",
+        "mongodb_mongo_master_0aac1805c04aa5b1481ba99dcab2273d423df10c",
+        "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d",
+        "mongodb_mongo_master_859b127ed3f86a180010be87cb1b9ccf81db9845",
         "mongodb_mongo_master_8cdcfd2ab0d28dca863557a02cafc86ae80f960e",
+        "mongodb_mongo_master_cde28e2ab957bd4a27ef240dfbfeea3cc8a70b74",
+        "mongodb_mongo_master_a929cf1b5d09783bafa93320060aff8a91a76c6e",
+        "mongodb_mongo_master_a6d5ee2ecb12a8a033f0af31304d132cf69266e5",
         "mongodb_mongo_master_5e607a45d34a4f977341591eec107a7a8a361626",
         "mongodb_mongo_master_6aab3ab5b6c20dd46cb659e8eaefb597f2b53263",
-        "mongodb_mongo_master_a6d5ee2ecb12a8a033f0af31304d132cf69266e5",
-        "mongodb_mongo_master_c8007d0d9574088031d34e70f36f2fcbd17fe253"
+        "mongodb_mongo_master_c8007d0d9574088031d34e70f36f2fcbd17fe253",
     ]
     for version_id in version_ids:
         version = evg_api.version_by_id(version_id)
@@ -131,6 +144,8 @@ def main(
             diff = commit.diff(parent)
             repo_changed_files = find_changed_files(diff, repo)
             changed_files.update(repo_changed_files)
+
+        changed_files = {_remove_repo_path_prefix(file_path) for file_path in changed_files}
 
         LOGGER.info("Found changed files", files=changed_files)
 
