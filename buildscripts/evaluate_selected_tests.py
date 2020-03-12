@@ -180,6 +180,10 @@ def main(
             if related_tasks:
                 tasks_that_would_have_run[build_variant].update(related_tasks)
 
+            tasks_that_would_have_run[build_variant] = filter_excluded_tasks(build_variant_config,
+                                                                             tasks_that_would_have_run[
+                                                                                 build_variant])
+
             if failed_tasks[build_variant]:
                 correctly_captured_tasks = failed_tasks[build_variant].intersection(
                     tasks_that_would_have_run[build_variant])
