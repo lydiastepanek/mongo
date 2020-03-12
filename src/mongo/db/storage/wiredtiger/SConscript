@@ -1,4 +1,5 @@
 # -*- mode: python -*-
+# hi
 Import("env")
 Import("wiredtiger")
 Import("get_option")

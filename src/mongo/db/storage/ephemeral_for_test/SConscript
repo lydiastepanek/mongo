@@ -1,4 +1,5 @@
 # -*- mode: python -*-
+# hi
 Import("env")
 
 env = env.Clone()
