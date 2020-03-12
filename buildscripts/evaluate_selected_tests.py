@@ -6,6 +6,7 @@ import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
 from collections import defaultdict
 import pytz
+import pdb
 
 import click
 import structlog
@@ -22,7 +23,8 @@ if __name__ == "__main__" and __package__ is None:
 import buildscripts.resmokelib.parser
 import buildscripts.util.read_config as read_config
 from buildscripts.burn_in_tests import DEFAULT_REPO_LOCATIONS, create_task_list_for_tests
-from buildscripts.selected_tests import _find_selected_test_files, _find_selected_tasks, filter_excluded_tasks, _remove_repo_path_prefix
+from buildscripts.selected_tests import _find_selected_test_files, _find_selected_tasks, \
+    filter_excluded_tasks, _remove_repo_path_prefix
 from buildscripts.ciconfig.evergreen import (
     parse_evergreen_file, )
 from buildscripts.patch_builds.change_data import find_changed_files
@@ -100,21 +102,16 @@ def main(
 
     buildscripts.resmokelib.parser.set_options()
 
-    origin_build_variants = evg_conf.get_variant(
-        "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
-
     final_results = defaultdict(dict)
 
     version_ids = [
         "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
-        "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
         "mongodb_mongo_master_63253ac8554b2a867de988fed5077ecfbc4522e0",
         "mongodb_mongo_master_ad642bcf1a2d59600e891c4666a80be4d5f6b4bf",
         "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
         "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
         "mongodb_mongo_master_5b50a111c9361554bc7dbe6a8c63c885a5c29df6",
         "mongodb_mongo_master_61ea39197455ca2e54135607e5625bb2c2796ec3",
-        "mongodb_mongo_master_f83f9dcc22156cdf3c3e16a040914806e2e17cf7",
         "mongodb_mongo_master_0aac1805c04aa5b1481ba99dcab2273d423df10c",
         "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d",
         "mongodb_mongo_master_859b127ed3f86a180010be87cb1b9ccf81db9845",
@@ -125,8 +122,16 @@ def main(
         "mongodb_mongo_master_5e607a45d34a4f977341591eec107a7a8a361626",
         "mongodb_mongo_master_6aab3ab5b6c20dd46cb659e8eaefb597f2b53263",
         "mongodb_mongo_master_c8007d0d9574088031d34e70f36f2fcbd17fe253",
+        "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
+        "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84",
+        "mongodb_mongo_master_8dcbfee04b9a5ae83bf0b177a45d3f3e204a4ecb",
     ]
     for version_id in version_ids:
+        if version_id == "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84":
+            origin_build_variants = ["linux-64-debug"]
+        else:
+            origin_build_variants = evg_conf.get_variant(
+                "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
         version = evg_api.version_by_id(version_id)
         LOGGER.info("Analyzing version", version=version.version_id,
                     create_time=version.create_time)
@@ -180,7 +185,9 @@ def main(
                     tasks_that_would_have_run[build_variant])
                 percentage_captured_tasks = len(correctly_captured_tasks) / len(
                     failed_tasks[build_variant])
-                final_results[version.version_id][build_variant] = percentage_captured_tasks
+                final_results[version.version_id][build_variant] = {
+                    "tasks_selected_to_run": len(tasks_that_would_have_run[build_variant]),
+                    "percentage_captured_tasks": percentage_captured_tasks}
 
         LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
         LOGGER.info("Tasks that would have run:",
