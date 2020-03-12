@@ -105,27 +105,34 @@ def main(
     final_results = defaultdict(dict)
 
     version_ids = [
-        "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
-        "mongodb_mongo_master_63253ac8554b2a867de988fed5077ecfbc4522e0",
-        "mongodb_mongo_master_ad642bcf1a2d59600e891c4666a80be4d5f6b4bf",
-        "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
-        "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
-        "mongodb_mongo_master_5b50a111c9361554bc7dbe6a8c63c885a5c29df6",
+        # "mongodb_mongo_master_82cf48411f7c6faee2d3dabcce8bb168542dacc2",
+        # "mongodb_mongo_master_63253ac8554b2a867de988fed5077ecfbc4522e0",
+        # "mongodb_mongo_master_ad642bcf1a2d59600e891c4666a80be4d5f6b4bf",
+        # "mongodb_mongo_master_428ac6507118e58b6709e3dbae9fb4657e377637",
+        # "mongodb_mongo_master_9fb1edd400526809c917e99ac4cfb6c9473baf72",
+        # "mongodb_mongo_master_5b50a111c9361554bc7dbe6a8c63c885a5c29df6",
         "mongodb_mongo_master_61ea39197455ca2e54135607e5625bb2c2796ec3",
-        "mongodb_mongo_master_0aac1805c04aa5b1481ba99dcab2273d423df10c",
-        "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d",
-        "mongodb_mongo_master_859b127ed3f86a180010be87cb1b9ccf81db9845",
-        "mongodb_mongo_master_8cdcfd2ab0d28dca863557a02cafc86ae80f960e",
-        "mongodb_mongo_master_cde28e2ab957bd4a27ef240dfbfeea3cc8a70b74",
-        "mongodb_mongo_master_a929cf1b5d09783bafa93320060aff8a91a76c6e",
-        "mongodb_mongo_master_a6d5ee2ecb12a8a033f0af31304d132cf69266e5",
-        "mongodb_mongo_master_5e607a45d34a4f977341591eec107a7a8a361626",
-        "mongodb_mongo_master_6aab3ab5b6c20dd46cb659e8eaefb597f2b53263",
-        "mongodb_mongo_master_c8007d0d9574088031d34e70f36f2fcbd17fe253",
-        "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
-        "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84",
-        "mongodb_mongo_master_8dcbfee04b9a5ae83bf0b177a45d3f3e204a4ecb",
+        # "mongodb_mongo_master_0aac1805c04aa5b1481ba99dcab2273d423df10c",
+        # "mongodb_mongo_master_1525d54f235715d10e41711122a448bd5253588d",
+        # "mongodb_mongo_master_859b127ed3f86a180010be87cb1b9ccf81db9845",
+        # "mongodb_mongo_master_8cdcfd2ab0d28dca863557a02cafc86ae80f960e",
+        # "mongodb_mongo_master_cde28e2ab957bd4a27ef240dfbfeea3cc8a70b74",
+        # "mongodb_mongo_master_a929cf1b5d09783bafa93320060aff8a91a76c6e",
+        # "mongodb_mongo_master_a6d5ee2ecb12a8a033f0af31304d132cf69266e5",
+        # "mongodb_mongo_master_5e607a45d34a4f977341591eec107a7a8a361626",
+        # "mongodb_mongo_master_6aab3ab5b6c20dd46cb659e8eaefb597f2b53263",
+        # "mongodb_mongo_master_c8007d0d9574088031d34e70f36f2fcbd17fe253",
+        # "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
+        # "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84",
+        # "mongodb_mongo_master_8dcbfee04b9a5ae83bf0b177a45d3f3e204a4ecb",
     ]
+    # origin_build_variants = evg_conf.get_variant(
+    #     "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
+    # for build_variant in origin_build_variants:
+    #     build_variant_config = evg_conf.get_variant(build_variant)
+    #     tasks = [task.name for task in build_variant_config.tasks]
+    #     tasks = filter_excluded_tasks(build_variant_config, tasks)
+    #     LOGGER.info("Build variant info:", variant=build_variant_config.name, tasks=len(tasks))
     for version_id in version_ids:
         if version_id == "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84":
             origin_build_variants = ["linux-64-debug"]
@@ -180,6 +187,7 @@ def main(
             if related_tasks:
                 tasks_that_would_have_run[build_variant].update(related_tasks)
 
+            pdb.set_trace()
             if failed_tasks[build_variant]:
                 correctly_captured_tasks = failed_tasks[build_variant].intersection(
                     tasks_that_would_have_run[build_variant])
@@ -193,7 +201,6 @@ def main(
         LOGGER.info("Tasks that would have run:",
                     tasks_that_would_have_run=tasks_that_would_have_run)
 
-    # failed tasks is not printing contents of set()
     LOGGER.info("Final results:", final_results=final_results)
 
 
