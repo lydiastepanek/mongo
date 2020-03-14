@@ -1,5 +1,4 @@
 /**
- * hi
  *    Copyright (C) 2018-present MongoDB, Inc.
  *
  *    This program is free software: you can redistribute it and/or modify
