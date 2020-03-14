@@ -170,6 +170,26 @@ def _find_selected_test_files(selected_tests_service: SelectedTestsService,
     }
 
 
+def exclude_task(build_variant_config: Variant, task_name: str) -> bool:
+    """
+    Return whether a task doesn't exist or should be excluded.
+
+    :param build_variant_config: Config of build variant to collect task info from.
+    :param task_name: Name of a task.
+    :return: Whether task doesn't exist of should be excluded.
+    """
+    task = _find_task(build_variant_config, task_name)
+    if task:
+        if task.name in EXCLUDE_TASK_LIST or any(
+                regex.match(task.name) for regex in EXCLUDE_TASK_PATTERNS):
+            LOGGER.debug("Excluding task from analysis because it is not a jstest",
+                         task=task_name)
+            return True
+    else:
+        return True
+    return False
+
+
 def _find_selected_tasks(selected_tests_service: SelectedTestsService, changed_files: Set[str],
                          build_variant_config: Variant) -> Set[str]:
     """
@@ -181,21 +201,10 @@ def _find_selected_tasks(selected_tests_service: SelectedTestsService, changed_f
     :return: Set of tasks returned by selected-tests service that should not be excluded.
     """
     task_mappings = selected_tests_service.get_task_mappings(RELATION_THRESHOLD, changed_files)
-    returned_task_names = {
+    return {
         task["name"]
         for task_mapping in task_mappings for task in task_mapping["tasks"]
     }
-    existing_task_names = set()
-    for task_name in returned_task_names:
-        task = _find_task(build_variant_config, task_name)
-        if task:
-            if task.name in EXCLUDE_TASK_LIST or any(
-                    regex.match(task.name) for regex in EXCLUDE_TASK_PATTERNS):
-                LOGGER.debug("Excluding task from analysis because it is not a jstest",
-                             task=task_name)
-                continue
-            existing_task_names.add(task.name)
-    return existing_task_names
 
 
 def _find_task(build_variant_config: Variant, task_name: str) -> Task:
@@ -297,6 +306,8 @@ def _get_task_configs_for_test_mappings(selected_tests_variant_expansions: Dict[
     """
     evg_task_configs = {}
     for task_name, test_list_info in tests_by_task.items():
+        if exclude_task(build_variant_config, task_name):
+            continue
         evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
                                                build_variant_config)
         evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
@@ -319,6 +330,8 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
     """
     evg_task_configs = {}
     for task_name in related_tasks:
+        if exclude_task(build_variant_config, task_name):
+            continue
         evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
                                                build_variant_config)
         LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
