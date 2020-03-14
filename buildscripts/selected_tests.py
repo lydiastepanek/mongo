@@ -310,6 +310,7 @@ def _get_task_configs_for_test_mappings(selected_tests_variant_expansions: Dict[
         if exclude_task(build_variant_config, task_name):
             LOGGER.debug("Task should be excluded", task=task_name)
             continue
+        LOGGER.debug("Lydia task being analyzed anyway", task=task_name)
         evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
                                                build_variant_config)
         evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
