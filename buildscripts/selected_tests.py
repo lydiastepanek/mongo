@@ -6,6 +6,7 @@ import os
 import re
 import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
+import pdb
 
 import click
 import structlog
@@ -170,22 +171,17 @@ def _find_selected_test_files(selected_tests_service: SelectedTestsService,
     }
 
 
-def exclude_task(build_variant_config: Variant, task_name: str) -> bool:
+def exclude_task(task: Task) -> bool:
     """
-    Return whether a task doesn't exist or should be excluded.
+    Return whether a task should be excluded.
 
-    :param build_variant_config: Config of build variant to collect task info from.
-    :param task_name: Name of a task.
+    :param task: Task to get info for.
     :return: Whether task doesn't exist of should be excluded.
     """
-    task = _find_task(build_variant_config, task_name)
-    if task:
-        if task.name in EXCLUDE_TASK_LIST or any(
-                regex.match(task.name) for regex in EXCLUDE_TASK_PATTERNS):
-            LOGGER.debug("Excluding task from analysis because it is not a jstest",
-                         task=task_name)
-            return True
-    else:
+    if task.name in EXCLUDE_TASK_LIST or any(
+            regex.match(task.name) for regex in EXCLUDE_TASK_PATTERNS):
+        LOGGER.debug("Excluding task from analysis because it is not a jstest",
+                     task=task.name)
         return True
     return False
 
@@ -238,18 +234,17 @@ def _get_selected_tests_task_config(
 
 def _get_evg_task_config(
         selected_tests_variant_expansions: Dict[str, str],
-        task_name: str,
+        task: Task,
         build_variant_config: Variant,
 ) -> Dict[str, Any]:
     """
     Look up task config of the task to be generated.
 
     :param selected_tests_variant_expansions: Expansions of the selected-tests variant.
-    :param task_name: Task to get info for.
+    :param task: Task to get info for.
     :param build_variant_config: Config of build variant to collect task info from.
     :return: Task configuration values.
     """
-    task = build_variant_config.get_task(task_name)
     if task.is_generate_resmoke_task:
         task_vars = task.generate_resmoke_tasks_command["vars"]
     else:
@@ -306,16 +301,13 @@ def _get_task_configs_for_test_mappings(selected_tests_variant_expansions: Dict[
     """
     evg_task_configs = {}
     for task_name, test_list_info in tests_by_task.items():
-        LOGGER.debug("Lydia analyzing task", task=task_name)
-        if exclude_task(build_variant_config, task_name):
-            LOGGER.debug("Task should be excluded", task=task_name)
-            continue
-        LOGGER.debug("Lydia task being analyzed anyway", task=task_name)
-        evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
-                                               build_variant_config)
-        evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
-        LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
-        evg_task_configs[task_name] = evg_task_config
+        task = _find_task(build_variant_config, task_name)
+        if task and not exclude_task(task):
+            evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task,
+                                                   build_variant_config)
+            evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
+            LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
+            evg_task_configs[task_name] = evg_task_config
 
     return evg_task_configs
 
@@ -333,12 +325,12 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
     """
     evg_task_configs = {}
     for task_name in related_tasks:
-        if exclude_task(build_variant_config, task_name):
-            continue
-        evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task_name,
-                                               build_variant_config)
-        LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
-        evg_task_configs[task_name] = evg_task_config
+        task = _find_task(build_variant_config, task_name)
+        if task and not exclude_task(task):
+            evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task,
+                                                   build_variant_config)
+            LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
+            evg_task_configs[task_name] = evg_task_config
 
     return evg_task_configs
 
