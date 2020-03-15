@@ -307,7 +307,7 @@ def _get_task_configs_for_test_mappings(selected_tests_variant_expansions: Dict[
                                                    build_variant_config)
             evg_task_config.update({"selected_tests_to_run": set(test_list_info["tests"])})
             LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
-            evg_task_configs[task_name] = evg_task_config
+            evg_task_configs[task.name] = evg_task_config
 
     return evg_task_configs
 
@@ -330,7 +330,7 @@ def _get_task_configs_for_task_mappings(selected_tests_variant_expansions: Dict[
             evg_task_config = _get_evg_task_config(selected_tests_variant_expansions, task,
                                                    build_variant_config)
             LOGGER.debug("Calculated evg_task_config values", evg_task_config=evg_task_config)
-            evg_task_configs[task_name] = evg_task_config
+            evg_task_configs[task.name] = evg_task_config
 
     return evg_task_configs
 
