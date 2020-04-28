@@ -105,34 +105,20 @@ def main(
     final_results = defaultdict(dict)
 
     version_ids = [
-        "mongodb_mongo_master_8dcbfee04b9a5ae83bf0b177a45d3f3e204a4ecb",
-        "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84",
-        "mongodb_mongo_master_cad10292bbd4f8e237c5ba85ec9265c21eddec38",
-        "mongodb_mongo_master_49836a791fbab2c8f3726450cda1d3c708eff90a",
-        "mongodb_mongo_master_24c4b716145d290a22286b9861274a704aa8fe0b",
-        "mongodb_mongo_master_24c4b716145d290a22286b9861274a704aa8fe0b",
-        "mongodb_mongo_master_d308ab84524862c644ff8c216b474e53370e3dd0",
-        "mongodb_mongo_master_497f50a5e25db6171290f6e791ad02dd2b607498",
-        "mongodb_mongo_master_4a525f07f9ea82a2e57aa20f4969210b778e141b",
-        "mongodb_mongo_master_c553f6acd0ce7768d25a2dcdfa9358aa22b5ee55",
-        "mongodb_mongo_master_2ab8c98d285b3cf9481dc34fe77e1a019615f0ad",
-        "mongodb_mongo_master_b0c5c0baa85fba563c80ee416cecc22e9ffbf53a",
-        "mongodb_mongo_master_458857bdc28f8e60f62992d0c66b0ab468c179eb",
-        "mongodb_mongo_master_884e039ff713afedb32b8f49109b95f67cd88525",
-        "mongodb_mongo_master_b81a373933e8481fa40f4b6fc692e537df2e307b",
-        "mongodb_mongo_master_ece14c8410785b6d1f37a221307b1a0f1ca4e82d",
-        "mongodb_mongo_master_3fea6b339770dcdead06803b0c794553c25b94fb",
-        "mongodb_mongo_master_59152df7655101ee551d6432727170b42fcd136f",
-        "mongodb_mongo_master_27e8a8bf447e584c41495ea65df67736afd6c3c2",
-        "mongodb_mongo_master_fe1ab54ab292bbd880cb26317e3fa104fd72890c",
-        "mongodb_mongo_master_208460151d55b345ba9db253912494a8108c9949",
+        "mongodb_mongo_master_250cae2fdcd06600435d9f80de79f610e2c84df8",
+        #  "mongodb_mongo_master_cad10292bbd4f8e237c5ba85ec9265c21eddec38",
+        "mongodb_mongo_master_e14dbefec5fb18a7e9fc8739d3ef529bb1338ab4",
+        "mongodb_mongo_master_25e8528e420bd128cd0f944aba37afce3907276e",
+        "mongodb_mongo_master_b202ee3df460192bddf4193076c346928457a150",
+        "mongodb_mongo_master_546e411b72cf6f75d24b304ce9219d1f3d3a4e4f",
+        "mongodb_mongo_master_aa2ccf6e1992b41ac1b286291e6217d91157f573",
+        "mongodb_mongo_master_9faba94cb86061f5acba467cdd5f88338e712c1f",
+        "mongodb_mongo_master_9c15f7ff0f43d0813aec101135800d285a0cb54b",
     ]
     for version_id in version_ids:
-        if version_id == "mongodb_mongo_master_c50e93369250a762042006908babcdb512a14f84":
-            origin_build_variants = ["linux-64-debug"]
-        else:
-            origin_build_variants = evg_conf.get_variant(
-                "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
+        origin_build_variants = ["linux-64-debug", "enterprise-rhel-62-64-bit"]
+        #  origin_build_variants = evg_conf.get_variant(
+            #  "selected-tests").expansions["selected_tests_buildvariants"].split(" ")
         version = evg_api.version_by_id(version_id)
         LOGGER.info("Analyzing version", version=version.version_id,
                     create_time=version.create_time)
@@ -181,9 +167,8 @@ def main(
             if related_tasks:
                 tasks_that_would_have_run[build_variant].update(related_tasks)
 
-            tasks_that_would_have_run[build_variant] = filter_excluded_tasks(build_variant_config,
-                                                                             tasks_that_would_have_run[
-                                                                                 build_variant])
+            tasks_that_would_have_run[build_variant] = filter_excluded_tasks(
+                build_variant_config, tasks_that_would_have_run[build_variant])
 
             if failed_tasks[build_variant]:
                 correctly_captured_tasks = failed_tasks[build_variant].intersection(
@@ -192,7 +177,8 @@ def main(
                     failed_tasks[build_variant])
                 final_results[version.version_id][build_variant] = {
                     "tasks_selected_to_run": len(tasks_that_would_have_run[build_variant]),
-                    "percentage_captured_tasks": percentage_captured_tasks}
+                    "percentage_captured_tasks": percentage_captured_tasks
+                }
 
         LOGGER.info("Failed tasks:", failed_tasks=failed_tasks)
         LOGGER.info("Tasks that would have run:",
