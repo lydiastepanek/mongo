@@ -133,6 +133,11 @@ class SelectedTestsConfigOptions(ConfigOptions):
         return f"{self.task}_{self.variant}"
 
     @property
+    def execution_task_suffix(self):
+        """Return the name to use as the display task."""
+        return f"{self.variant}_sel"
+
+    @property
     def gen_task_set(self):
         """Return the set of tasks used to generate this configuration."""
         return set()

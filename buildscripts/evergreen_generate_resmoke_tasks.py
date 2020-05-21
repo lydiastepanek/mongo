@@ -169,6 +169,11 @@ class ConfigOptions(object):
         return self.task
 
     @property
+    def execution_task_suffix(self):
+        """Return the name to use as the display task."""
+        return self.variant
+
+    @property
     def gen_task_set(self):
         """Return the set of tasks used to generate this configuration."""
         return {self.task_name}
@@ -707,7 +712,7 @@ class EvergreenConfigGenerator(object):
         :return: Shrub configuration for the suite.
         """
         sub_task_name = taskname.name_generated_task(self.options.task, idx, len(self.suites),
-                                                     self.options.variant)
+                                                     self.options.execution_task_suffix)
         max_runtime = None
         total_runtime = None
         if suite.should_overwrite_timeout():
@@ -723,7 +728,7 @@ class EvergreenConfigGenerator(object):
         if self.options.create_misc_suite:
             # Add the misc suite
             misc_suite_name = f"{os.path.basename(self.options.suite)}_misc"
-            misc_task_name = f"{self.options.task}_misc_{self.options.variant}"
+            misc_task_name = f"{self.options.task}_misc_{self.options.execution_task_suffix}"
             tasks.add(
                 self._generate_task(misc_suite_name, misc_task_name,
                                     self.options.generated_config_dir))
